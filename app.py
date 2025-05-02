@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # --- ملف: app.py ---
-# النسخة المصححة لمعالجة أخطاء الاستيراد وبناء الجملة
+# النسخة المصححة + تصحيح منطق تحديد DATABASE_URL
 
 import os
 import sys
@@ -228,15 +228,31 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 
 # --- تحديد رابط قاعدة البيانات (DATABASE_URL) ---
+# ===> هذا هو الجزء الذي تم تعديله <===
 DATABASE_URL = os.environ.get('DATABASE_URL')
-if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
-     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-     print("--- INFO: Using PostgreSQL database from Environment Variable (e.g., Render).")
-else:
-     print("--- INFO: Using local SQLite database (database.db).")
-     DATABASE_URL = 'sqlite:///' + os.path.join(basedir, 'database.db')
+using_postgres = False # متغير لتتبع ما إذا كنا نستخدم PostgreSQL
 
+if DATABASE_URL:
+    if DATABASE_URL.startswith('postgresql://'):
+        # يتعرف على الرابط الجديد مباشرة
+        print("--- INFO: Using PostgreSQL database (postgresql://) from Environment Variable.")
+        using_postgres = True
+    elif DATABASE_URL.startswith('postgres://'):
+        # يتعرف على الرابط القديم ويقوم بالتعديل
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        print("--- INFO: Using PostgreSQL database (postgres:// converted) from Environment Variable.")
+        using_postgres = True
+
+# Fallback to SQLite only if DATABASE_URL is not set or not recognized as PostgreSQL
+if not using_postgres:
+    print("--- INFO: DATABASE_URL not set or not recognized as PostgreSQL. Using local SQLite database (database.db).")
+    DATABASE_URL = 'sqlite:///' + os.path.join(basedir, 'database.db')
+
+# تعيين الرابط النهائي للتطبيق
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+print(f"--- INFO: Final SQLALCHEMY_DATABASE_URI set.") # طباعة للتأكيد
+# ===> نهاية الجزء المعدل <===
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-fallback-secret-key-change-it')
 EDITOR_CODE = os.environ.get('EDITOR_CODE', '0000')
@@ -419,7 +435,7 @@ with app.app_context():
 
 
 # --- المسارات الرئيسية (Routes) ---
-
+# (بقية المسارات تبقى كما هي بدون تغيير)
 @app.route('/')
 @app.route('/<lang>/')
 @app.route('/plan/')
@@ -1005,4 +1021,3 @@ if __name__ == '__main__':
     is_debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
     print(f"--- INFO: Running Flask app with debug mode: {is_debug_mode}")
     app.run(host='0.0.0.0', port=port, debug=is_debug_mode)
-
