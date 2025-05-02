@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{{ lang_dir }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    {# لا نحتاج لـ CSS هنا لأنه سيتم تمريره من app.py #}
+</head>
+<body>
+    <div class="header">
+        <div class="title">{{ title }}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                {# استخدام UI لتحديد العناوين #}
+                <th>{{ UI.th_id }}</th>
+                <th>{{ UI.th_date }}</th>
+                <th>{{ UI.th_project }}</th>
+                <th>{{ UI.th_activity }}</th>
+                <th>{{ UI.th_location }}</th>
+                <th>{{ UI.th_confirmed }}</th>
+                <th>{{ UI.th_programs }}</th>
+                <th>{{ UI.th_logistics }}</th>
+                <th>{{ UI.th_finance }}</th>
+                <th>{{ UI.th_media }}</th>
+                <th>{{ UI.th_cars }}</th>
+                <th>{{ UI.th_execution_status }}</th>
+                <th>{{ UI.th_publication_links }}</th>
+                <th>{{ UI.th_last_update }}</th>
+                {# --- *** إضافة رأس عمود المقترحات *** --- #}
+                <th>{{ UI.th_admin_suggestions }}</th>
+                {# -------------------------------------- #}
+            </tr>
+        </thead>
+        <tbody>
+            {% if activities %}
+                {% for activity in activities %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ activity.activity_date.strftime('%Y-%m-%d') if activity.activity_date else '' }}</td>
+                    <td>{{ activity.project.name if activity.project else '-' }}</td>
+                    <td>{{ activity.activity_desc | replace('\n', '<br>') | safe if activity.activity_desc else '' }}</td>
+                    <td>{{ activity.location if activity.location else '' }}</td>
+                    <td class="confirmed-{{ activity.confirmed|string|lower }}">
+                        {{ UI.confirmed if activity.confirmed else UI.unconfirmed }}
+                    </td>
+                    <td>{{ activity.team_programs if activity.team_programs else '' }}</td>
+                    <td>{{ activity.team_logistics if activity.team_logistics else '' }}</td>
+                    <td>{{ activity.team_finance if activity.team_finance else '' }}</td>
+                    <td>{{ activity.team_media if activity.team_media else '' }}</td>
+                    <td>{{ activity.team_cars if activity.team_cars else '' }}</td>
+                    <td class="exec-{{ activity.execution_status|string|lower }}">
+                        {{ UI.executed if activity.execution_status else UI.not_executed }}
+                    </td>
+                    <td class="links">
+                        {% if activity.link1 %}<a href="{{ activity.link1 }}" target="_blank">{{ activity.link1[:30] }}...</a>{% endif %}
+                        {% if activity.link2 %}<a href="{{ activity.link2 }}" target="_blank">{{ activity.link2[:30] }}...</a>{% endif %}
+                        {% if activity.link3 %}<a href="{{ activity.link3 }}" target="_blank">{{ activity.link3[:30] }}...</a>{% endif %}
+                    </td>
+                    <td class="last-update">
+                        {{ activity.last_updated_on.strftime('%Y-%m-%d %H:%M') if activity.last_updated_on else '-' }}<br>
+                        {{ UI.updated_by }}: {{ activity.last_updated_by.name if activity.last_updated_by else '-' }}
+                    </td>
+                    {# --- *** إضافة خلية بيانات المقترحات *** --- #}
+                    <td class="admin-suggestions">
+                         {{ activity.admin_suggestions | replace('\n', '<br>') | safe if activity.admin_suggestions else '' }}
+                    </td>
+                    {# ----------------------------------------- #}
+                </tr>
+                {% endfor %}
+            {% else %}
+                 {# --- *** تعديل colspan ليشمل العمود الجديد *** --- #}
+                <tr>
+                    <td colspan="15" style="text-align: center; padding: 15px;">{{ UI.no_activities_msg }} {{ month_name }} {{ current_year }}.</td>
+                </tr>
+                 {# --------------------------------------------- #}
+            {% endif %}
+        </tbody>
+    </table>
+</body>
+</html>
+

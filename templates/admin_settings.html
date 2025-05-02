@@ -1,0 +1,377 @@
+{% extends "base.html" %} {# --- السطر الأول: يرث من base.html --- #}
+
+{# --- Block: عنوان الصفحة --- #}
+{% block title %}{{ title }}{% endblock %}
+
+{# --- Block: أنماط CSS خاصة بهذه الصفحة (إذا وجدت) --- #}
+{% block styles %}
+<style>
+    /* أنماط خاصة بصفحة الإعدادات */
+    .card { margin-bottom: 1.5rem; }
+    .card-header { font-weight: bold; }
+    .list-group-item { padding: 0.75rem 1rem; } /* تعديل padding */
+    .list-group-item .btn-group { margin-left: auto; } /* دفع الأزرار لليمين */
+    html[dir="rtl"] .list-group-item .btn-group { margin-left: 0; margin-right: auto; } /* دفع الأزرار لليسار في RTL */
+    .btn-group .btn { padding: 0.25rem 0.5rem; font-size: 0.8em; } /* تصغير الأزرار قليلاً */
+    .btn-group .btn i { margin-right: 3px; } html[dir="rtl"] .btn-group .btn i { margin-right: 0; margin-left: 3px; }
+</style>
+{% endblock %}
+
+
+{# --- Block: محتوى الصفحة الرئيسي --- #}
+{% block content %}
+<div class="container mt-4 mb-5" style="max-width: 960px;"> {# Added max-width and bottom margin #}
+    <h2 class="mb-4 text-center">{{ UI.get('admin_settings_title') }}</h2> {# Centered title #}
+
+    {# --- Flash Messages (تأتي من base.html إذا تم نقلها هناك) --- #}
+    {# إذا لم يتم نقلها، يمكن وضعها هنا #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'warning' if category == 'warning' else 'danger' if category == 'danger' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                {# زر الإغلاق قد يحتاج لـ Bootstrap JS ليعمل #}
+                {# <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> #}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row g-4"> {# Added gutter spacing between columns #}
+        {# --- قسم إدارة المحررين --- #}
+        <div class="col-md-6">
+            <div class="card shadow-sm"> {# Added subtle shadow #}
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center"> {# Styled header #}
+                    <h5 class="mb-0">{{ UI.get('manage_editors') }}</h5>
+                    <button type="button" class="btn btn-light btn-sm py-1" onclick="openModal('addEditorModal')"> {# Use onclick #}
+                        <i class="fas fa-plus me-1"></i> {{ UI.get('add_editor_btn') }}
+                    </button>
+                </div>
+                <div class="card-body p-0"> {# Removed padding for list group #}
+                    {% if editors %}
+                        <ul class="list-group list-group-flush">
+                            {% for editor in editors %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span class="editor-name">{{ editor.name }}</span>
+                                <div class="btn-group btn-group-sm" role="group"> {# Grouped buttons #}
+                                    <button type="button" class="btn btn-outline-warning edit-editor-btn"
+                                            onclick="openEditEditorModal(this)" {# Use onclick #}
+                                            data-editor-id="{{ editor.id }}"
+                                            data-get-url="{{ url_for('get_editor_data', editor_id=editor.id, lang=lang) }}"> {# URL to fetch data #}
+                                        <i class="fas fa-edit"></i> {# Edit icon #}
+                                    </button>
+                                    {# Delete Form - Use POST #}
+                                    {# *** CORRECTED LINE: Use get_text() instead of UI.get() *** #}
+                                    <form action="{{ url_for('delete_editor', editor_id=editor.id, lang=lang) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm({{ get_text('editor_delete_confirm', name=editor.name)|tojson }})">
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            <i class="fas fa-trash-alt"></i> {# Delete icon #}
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-center text-muted p-3">{{ UI.get('fetch_editors_error') or 'No editors found.' }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# --- قسم إدارة المشاريع --- #}
+        <div class="col-md-6">
+            <div class="card shadow-sm"> {# Added subtle shadow #}
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center"> {# Styled header #}
+                    <h5 class="mb-0">{{ UI.get('manage_projects') }}</h5>
+                     <button type="button" class="btn btn-light btn-sm py-1" onclick="openModal('addProjectModal')"> {# Use onclick #}
+                        <i class="fas fa-plus me-1"></i> {{ UI.get('add_project_btn') }}
+                    </button>
+                </div>
+                 <div class="card-body p-0"> {# Removed padding for list group #}
+                    {% if projects %}
+                        <ul class="list-group list-group-flush">
+                            {% for project in projects %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span class="project-name">{{ project.name }}</span>
+                                <div class="btn-group btn-group-sm" role="group"> {# Grouped buttons #}
+                                    <button type="button" class="btn btn-outline-warning edit-project-btn"
+                                            onclick="openEditProjectModal(this)" {# Use onclick #}
+                                            data-project-id="{{ project.id }}"
+                                            data-get-url="{{ url_for('get_project_data', project_id=project.id, lang=lang) }}"> {# URL to fetch data #}
+                                         <i class="fas fa-edit"></i> {# Edit icon #}
+                                    </button>
+                                    {# Delete Form - Use POST #}
+                                     {# *** CORRECTED LINE: Use get_text() instead of UI.get() *** #}
+                                    <form action="{{ url_for('delete_project', project_id=project.id, lang=lang) }}" method="POST" class="d-inline"
+                                          onsubmit="return confirm({{ get_text('project_delete_confirm', name=project.name)|tojson }})">
+                                        <button type="submit" class="btn btn-outline-danger">
+                                             <i class="fas fa-trash-alt"></i> {# Delete icon #}
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-center text-muted p-3">{{ UI.get('fetch_projects_error') or 'No projects found.' }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- زر العودة للخطة الشهرية --- #}
+    <div class="mt-4 text-center">
+         <a href="{{ url_for('monthly_plan', lang=lang) }}" class="btn btn-secondary">
+             <i class="fas fa-arrow-left me-1"></i> {{ UI.get('monthly_plan') }} {# Back icon #}
+         </a>
+    </div>
+
+</div>{# End container #}
+
+{#--- النوافذ المنبثقة (Modals) ---#}
+
+{# Add Editor Modal #}
+<div class="modal fade" id="addEditorModal" tabindex="-1" aria-labelledby="addEditorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+        <div class="modal-content">
+            <form action="{{ url_for('add_editor', lang=lang) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEditorModalLabel">{{ UI.get('modal_title_add_editor') }}</h5>
+                    <button type="button" class="close-btn" onclick="closeModal('addEditorModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 form-group"> {# Added form-group #}
+                        <label for="add-editor-name" class="form-label">{{ UI.get('label_editor_name') }}</label>
+                        <input type="text" class="form-control" id="add-editor-name" name="editor_name" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addEditorModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
+                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Edit Editor Modal #}
+<div class="modal fade" id="editEditorModal" tabindex="-1" aria-labelledby="editEditorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+        <div class="modal-content">
+            <form id="editEditorForm" action="" method="POST"> {# Action set dynamically by JS #}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editEditorModalLabel">{{ UI.get('modal_title_edit_editor') }}</h5>
+                     <button type="button" class="close-btn" onclick="closeModal('editEditorModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 form-group"> {# Added form-group #}
+                        <label for="edit-editor-name" class="form-label">{{ UI.get('label_editor_name') }}</label>
+                        <input type="text" class="form-control" id="edit-editor-name" name="editor_name" required>
+                    </div>
+                     {# Optional: Add loading indicator #}
+                     <div id="editEditorLoading" class="text-center d-none">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('editEditorModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
+                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Add Project Modal #}
+<div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
+     <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+        <div class="modal-content">
+            <form action="{{ url_for('add_project', lang=lang) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addProjectModalLabel">{{ UI.get('modal_title_add_project') }}</h5>
+                    <button type="button" class="close-btn" onclick="closeModal('addProjectModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 form-group"> {# Added form-group #}
+                        <label for="add-project-name" class="form-label">{{ UI.get('label_project_name') }}</label>
+                        <input type="text" class="form-control" id="add-project-name" name="project_name" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addProjectModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
+                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Edit Project Modal #}
+<div class="modal fade" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
+     <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+        <div class="modal-content">
+            <form id="editProjectForm" action="" method="POST"> {# Action set dynamically by JS #}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editProjectModalLabel">{{ UI.get('modal_title_edit_project') }}</h5>
+                    <button type="button" class="close-btn" onclick="closeModal('editProjectModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 form-group"> {# Added form-group #}
+                        <label for="edit-project-name" class="form-label">{{ UI.get('label_project_name') }}</label>
+                        <input type="text" class="form-control" id="edit-project-name" name="project_name" required>
+                    </div>
+                     {# Optional: Add loading indicator #}
+                     <div id="editProjectLoading" class="text-center d-none">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('editProjectModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
+                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{# --- Block: سكربتات JavaScript الخاصة بهذه الصفحة --- #}
+{% block scripts %}
+{# --- تضمين قاموس النصوص كـ JSON (إذا لم يكن في base.html) --- #}
+{# <script id="ui-texts" type="application/json">{{ UI | tojson | safe }}</script> #}
+<script>
+    // --- دوال فتح/إغلاق النوافذ المنبثقة (يمكن نقلها لـ base.html إذا كانت مستخدمة في index.html أيضاً) ---
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            // إذا كنت تستخدم Bootstrap JS، استخدم الطريقة الموصى بها
+            // const bsModal = new bootstrap.Modal(modal);
+            // bsModal.show();
+            // إذا لم تكن تستخدم Bootstrap JS، استخدم الطريقة اليدوية
+            modal.style.display = 'block';
+            modal.classList.add('show'); // قد تحتاج لهذه الفئة إذا كانت أنماطك تعتمد عليها
+        } else {
+            console.error(`Modal with ID ${modalId} not found.`);
+        }
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            // إذا كنت تستخدم Bootstrap JS
+            // const bsModal = bootstrap.Modal.getInstance(modal);
+            // if (bsModal) bsModal.hide();
+            // إذا لم تكن تستخدم Bootstrap JS
+             modal.style.display = 'none';
+             modal.classList.remove('show');
+             // إعادة تعيين النموذج داخل المودال عند الإغلاق
+             const form = modal.querySelector('form');
+             if (form) {
+                 form.reset();
+             }
+        }
+    }
+
+     // إغلاق المودال عند النقر خارج محتواه (إذا لم تستخدم Bootstrap JS)
+     window.addEventListener('click', function(event) {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target == modal) {
+                closeModal(modal.id);
+            }
+        });
+     });
+
+
+    // --- دوال خاصة بمودالات تعديل المحرر والمشروع ---
+    async function openEditEditorModal(buttonElement) {
+        const modal = document.getElementById('editEditorModal');
+        if (!modal) return;
+
+        const editorNameInput = modal.querySelector('#edit-editor-name');
+        const form = modal.querySelector('#editEditorForm');
+        const loadingIndicator = modal.querySelector('#editEditorLoading');
+        const modalTitle = modal.querySelector('.modal-title');
+        const editorId = buttonElement.dataset.editorId;
+        const getDataUrl = buttonElement.dataset.getUrl; // Get URL from button
+
+        // Set form action URL immediately using template literals for clarity
+        const actionUrl = `{{ url_for('edit_editor', editor_id=0, lang=lang) }}`.replace('/0', `/${editorId}`);
+        form.action = actionUrl;
+
+        // Reset form state and show loading
+        editorNameInput.value = ''; // Clear previous value
+        if(loadingIndicator) loadingIndicator.classList.remove('d-none'); // Show loading
+        modalTitle.textContent = `{{ UI.get('modal_title_edit_editor') }} #${editorId}`; // Update title
+
+        // Fetch editor data
+        try {
+            const response = await fetch(getDataUrl);
+            if (!response.ok) {
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try { const errData = await response.json(); errorMsg = errData.error || errorMsg; } catch (e) { /* Ignore */ }
+                throw new Error(errorMsg);
+            }
+            const data = await response.json();
+            if (data.name) {
+                editorNameInput.value = data.name; // Populate input field
+            } else { console.error("Editor name not found in response:", data); }
+        } catch (error) {
+            console.error('Error fetching editor data:', error);
+            editorNameInput.placeholder = "{{ UI.get('get_editor_error') }}"; // Use placeholder for error
+        } finally {
+            if(loadingIndicator) loadingIndicator.classList.add('d-none'); // Hide loading
+            openModal('editEditorModal'); // Open modal after attempting fetch
+        }
+    }
+
+    async function openEditProjectModal(buttonElement) {
+        const modal = document.getElementById('editProjectModal');
+        if (!modal) return;
+
+        const projectNameInput = modal.querySelector('#edit-project-name');
+        const form = modal.querySelector('#editProjectForm');
+        const loadingIndicator = modal.querySelector('#editProjectLoading');
+        const modalTitle = modal.querySelector('.modal-title');
+        const projectId = buttonElement.dataset.projectId;
+        const getDataUrl = buttonElement.dataset.getUrl;
+
+        // Set form action URL using template literals
+        const actionUrl = `{{ url_for('edit_project', project_id=0, lang=lang) }}`.replace('/0', `/${projectId}`);
+        form.action = actionUrl;
+
+        // Reset form state and show loading
+        projectNameInput.value = '';
+        if(loadingIndicator) loadingIndicator.classList.remove('d-none');
+        modalTitle.textContent = `{{ UI.get('modal_title_edit_project') }} #${projectId}`; // Use template literal
+
+        // Fetch project data
+        try {
+            const response = await fetch(getDataUrl);
+             if (!response.ok) {
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try { const errData = await response.json(); errorMsg = errData.error || errorMsg; } catch (e) { /* Ignore */ }
+                throw new Error(errorMsg);
+            }
+            const data = await response.json();
+            if (data.name) {
+                projectNameInput.value = data.name;
+            } else { console.error("Project name not found in response:", data); }
+        } catch (error) {
+            console.error('Error fetching project data:', error);
+            projectNameInput.placeholder = "{{ UI.get('get_project_error') }}"; // Use placeholder for error
+        } finally {
+             if(loadingIndicator) loadingIndicator.classList.add('d-none');
+             openModal('editProjectModal'); // Open modal after attempting fetch
+        }
+    }
+
+</script>
+{% endblock %}

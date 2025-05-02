@@ -1,0 +1,462 @@
+{% extends "base.html" %} {# --- السطر الأول: يرث من base.html --- #}
+
+{# --- Block: عنوان الصفحة --- #}
+{% block title %}{{ title }}{% endblock %}
+
+{# --- Block: أنماط CSS خاصة بهذه الصفحة (إذا وجدت) --- #}
+{% block styles %}
+<style>
+    /* --- الأنماط التي كانت موجودة في index.html ولم يتم نقلها إلى base.html --- */
+    .header-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0; gap: 10px; flex-wrap: wrap; }
+    h1.page-title { color: #343a40; margin: 0; font-size: 1.4em; text-align: center; flex-grow: 1; }
+    .nav-button { display: inline-block; padding: 6px 10px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; font-size: 0.8em; transition: background-color 0.2s ease; border: none; cursor: pointer; white-space: nowrap; }
+    .nav-button:hover { background-color: #5a6268; }
+    .pdf-export-btn { background-color: #17a2b8; margin: 0 10px; } .pdf-export-btn:hover { background-color: #138496; } .pdf-export-btn.disabled { background-color: #adb5bd; cursor: not-allowed; opacity: 0.7; }
+    .lang-selection { margin: 0 10px; white-space: nowrap; } .lang-selection a { margin: 0 4px; text-decoration: none; color: #007bff; font-weight: bold; font-size: 0.9em; } .lang-selection a.active { color: #343a40; text-decoration: underline; }
+
+    .user-status-section { margin-bottom: 15px; padding: 10px 15px; background-color: #f1f3f5; border-radius: 5px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.85em; }
+    .user-status-section .login-buttons button { padding: 6px 10px; border-radius: 4px; border: 1px solid transparent; font-size: inherit; cursor: pointer; margin-right: 5px; } html[dir="rtl"] .user-status-section .login-buttons button { margin-right: 0; margin-left: 5px; }
+    .user-status-section .login-buttons .editor-login-btn { background-color: #007bff; color: white; border-color: #007bff; } .user-status-section .login-buttons .editor-login-btn:hover { background-color: #0056b3; border-color: #0056b3; }
+    .user-status-section .login-buttons .admin-login-btn { background-color: #dc3545; color: white; border-color: #dc3545; } .user-status-section .login-buttons .admin-login-btn:hover { background-color: #c82333; border-color: #bd2130; }
+    .user-status-section .status-info { display: flex; align-items: center; gap: 8px; }
+    .user-status-section .status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; font-size: 0.9em; }
+    .user-status-section .status-badge.admin { background-color: #dc3545; } .user-status-section .status-badge.editor { background-color: #17a2b8; }
+    .user-status-section .settings-btn { padding: 4px 7px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em; text-decoration: none; } .user-status-section .settings-btn:hover { background-color: #5a6268; }
+    .user-status-section .editor-selection-form { display: inline-flex; align-items: center; gap: 5px; }
+    .user-status-section .editor-selection-form select { padding: 5px 8px; border-radius: 4px; border: 1px solid #ced4da; font-size: inherit; }
+    .user-status-section .editor-selection-form button { padding: 5px 8px; border-radius: 4px; border: 1px solid #007bff; background-color: #007bff; color: white; font-size: inherit; cursor: pointer; } .user-status-section .editor-selection-form button:hover { background-color: #0056b3; border-color: #0056b3; }
+    .user-status-section .selected-editor-info { font-weight: bold; color: #28a745; }
+    .user-status-section .logout-button { margin-left: auto; padding: 6px 10px; background-color: #ffc107; color: #333; border: none; border-radius: 4px; cursor: pointer; font-size: inherit; text-decoration: none; } html[dir="rtl"] .user-status-section .logout-button { margin-left: 0; margin-right: auto; } .user-status-section .logout-button:hover { background-color: #e0a800; }
+
+    /* أنماط الجدول الخاصة بـ index.html (إذا كانت مختلفة عن base.html) */
+    .confirmed-true { background-color: #d4edda; color: #155724; font-weight: bold; }
+    .confirmed-false { background-color: #f8d7da; color: #721c24; font-weight: bold; }
+    .exec-status-cell { text-align: center; }
+    .exec-status-checkbox { cursor: pointer; transform: scale(0.9); }
+    .exec-status-cell.executed { background-color: #e3f2fd; }
+    .links-cell a { display: block; margin-bottom: 1px; color: #007bff; text-decoration: none; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+    .links-cell a:hover { text-decoration: underline; }
+    .last-update { font-size: 0.9em; color: #6c757d; text-align: center; white-space: nowrap; }
+    .actions { text-align: center; white-space: nowrap; }
+    .actions button, .actions form button { padding: 4px 7px; margin: 0 2px; font-size: 0.9em; cursor: pointer; border-radius: 4px; border: 1px solid transparent; }
+    .edit-btn { background-color: #ffc107; border-color: #ffc107; color: #333; }
+    .delete-btn { background-color: #dc3545; border-color: #dc3545; color: white; }
+    .add-activity-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; font-size: 0.95em; cursor: pointer; border-radius: 5px; }
+    .add-activity-btn:hover { background-color: #218838; }
+    td.admin-suggestions-cell { font-size: 0.9em; color: #555; } /* تنسيق خلية المقترحات */
+
+    /* أنماط مودال إضافة/تعديل النشاط */
+    .form-group label[for="confirmed"], .form-group label[for="execution_status"] { display: inline-block; margin-right: 8px; } html[dir="rtl"] .form-group label[for="confirmed"], html[dir="rtl"] .form-group label[for="execution_status"] { margin-right: 0; margin-left: 8px; }
+    .form-group input[type="checkbox"] { width: auto; vertical-align: middle; margin-left: 4px; } html[dir="rtl"] .form-group input[type="checkbox"] { margin-left: 0; margin-right: 4px; }
+    .form-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+    .form-actions { text-align: left; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; } html[dir="rtl"] .form-actions { text-align: right; }
+    .form-actions button { padding: 8px 18px; border-radius: 5px; cursor: pointer; border: none; font-size: 0.95em; margin-left: 5px; } html[dir="rtl"] .form-actions button { margin-left: 0; margin-right: 5px; }
+    .form-actions .save-btn { background-color: #28a745; color: white; }
+    .form-actions .cancel-btn { background-color: #6c757d; color: white; }
+    .form-actions .save-btn:hover { background-color: #218838; }
+    .form-actions .cancel-btn:hover { background-color: #5a6268; }
+
+    /* --- *** أنماط قسم الأنشطة القادمة *** --- */
+    .upcoming-activities-section {
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+        border: 1px solid #ced4da;
+    }
+    .upcoming-activities-section h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #495057;
+        text-align: center;
+        font-size: 1.2em;
+        border-bottom: 1px solid #adb5bd;
+        padding-bottom: 8px;
+    }
+    .upcoming-activity-item {
+        background-color: #fff;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        font-size: 0.9em;
+        border-left: 4px solid #17a2b8; /* شريط لتمييز العنصر */
+    }
+    html[dir="rtl"] .upcoming-activity-item {
+        border-left: none;
+        border-right: 4px solid #17a2b8;
+    }
+    .upcoming-activity-item strong { color: #007bff; }
+    .upcoming-activity-item .location { color: #6c757d; font-style: italic; }
+    .no-upcoming { text-align: center; color: #6c757d; font-style: italic; }
+    /* --------------------------------------- */
+
+</style>
+{% endblock %}
+
+
+{# --- Block: محتوى الصفحة الرئيسي --- #}
+{% block content %}
+<div class="container">
+
+    {# --- رسائل Flash (تأتي من base.html إذا تم نقلها هناك) --- #}
+    {% include '_flash_messages.html' ignore missing %} {# طريقة بديلة لتضمين الرسائل #}
+
+    {# --- عناصر التحكم العليا (الشهر، اللغة، التصدير، العنوان) --- #}
+    <div class="header-controls">
+        <a href="{{ prev_month_url }}" class="nav-button"><i class="fas fa-chevron-left"></i> {{ UI.prev_month }}</a>
+        <div class="lang-selection">
+            {% for code, lang_data in LANGUAGES.items() %}
+                {% if code == lang %} <span class="active">{{ lang_data.name }}</span>
+                {% else %} <a href="{{ url_for('monthly_plan', lang=code, year=current_year, month=current_month) }}">{{ lang_data.name }}</a>
+                {% endif %}
+                {% if not loop.last %} | {% endif %}
+            {% endfor %}
+        </div>
+        <a href="{{ url_for('export_pdf', year=current_year, month=current_month) }}"
+           class="nav-button pdf-export-btn {{ 'disabled' if not WEASYPRINT_AVAILABLE }}"
+           {% if not WEASYPRINT_AVAILABLE %} onclick="alert({{ UI.weasyprint_not_found|tojson }}); return false;" title="{{ UI.weasyprint_not_found }}"
+           {% else %} target="_blank" {% endif %}>
+           <i class="fas fa-file-pdf"></i> {{ UI.export_pdf_btn }}
+        </a>
+        <h1 class="page-title">{{ title }}</h1>
+        <a href="{{ next_month_url }}" class="nav-button">{{ UI.next_month }} <i class="fas fa-chevron-right"></i></a>
+    </div>
+
+    {# --- قسم حالة المستخدم وتسجيل الدخول/الخروج واختيار المحرر --- #}
+    <div class="user-status-section">
+        {% if not is_editor and not is_admin %}
+            <div class="login-buttons">
+                <button type="button" class="editor-login-btn" onclick="openModal('editorLoginModal')"><i class="fas fa-user-edit"></i> {{ UI.login_editor }}</button>
+                <button type="button" class="admin-login-btn" onclick="openModal('adminLoginModal')"><i class="fas fa-user-shield"></i> {{ UI.login_admin }}</button>
+            </div>
+        {% else %}
+            <div class="status-info">
+                {% if is_admin %}
+                    <span class="status-badge admin"><i class="fas fa-user-shield me-1"></i> {{ UI.admin_mode_active }}</span>
+                    <a href="{{ url_for('admin_settings', lang=lang) }}" class="settings-btn" title="{{ UI.settings_btn }}"><i class="fas fa-cog"></i></a>
+                {% elif is_editor %}
+                    <span class="status-badge editor"><i class="fas fa-user-edit me-1"></i> {{ UI.editor_mode_active }}</span>
+                {% endif %}
+            </div>
+            {% if not selected_editor_id %}
+                <form action="{{ url_for('select_editor', lang=lang) }}" method="POST" class="editor-selection-form">
+                    <select name="selected_editor" required aria-label="{{ UI.select_editor_prompt }}">
+                        <option value="" selected disabled>{{ UI.select_editor_prompt }}</option>
+                        {% for editor in editors %} <option value="{{ editor.id }}">{{ editor.name }}</option> {% endfor %}
+                    </select>
+                    <button type="submit">{{ UI.confirm_editor_btn }}</button>
+                </form>
+                 <a href="{{ url_for('logout', lang=lang) }}" class="logout-button" title="{{ UI.cancel_btn }}"><i class="fas fa-times"></i> {{ UI.cancel_btn }}</a>
+            {% else %}
+                <span class="selected-editor-info" title="{{ UI.editor_label }}"><i class="fas fa-user me-1"></i> <strong>{{ selected_editor_name }}</strong></span>
+            {% endif %}
+            <a href="{{ url_for('logout', lang=lang) }}" class="logout-button" title="{{ UI.logout_btn }}"><i class="fas fa-sign-out-alt"></i> {{ UI.logout_btn }}</a>
+        {% endif %}
+    </div>
+
+
+    {# --- زر إضافة نشاط --- #}
+    {% if (is_editor or is_admin) and selected_editor_id %}
+        <div style="margin-bottom: 15px; text-align: left;">
+             <button class="add-activity-btn" onclick="openAddModal()"><i class="fas fa-plus"></i> {{ UI.add_activity_btn }}</button>
+        </div>
+    {% endif %}
+
+    {# --- جدول الأنشطة --- #}
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>{{ UI.th_id }}</th>
+                    <th>{{ UI.th_date }}</th>
+                    <th>{{ UI.th_project }}</th>
+                    <th>{{ UI.th_activity }}</th>
+                    <th>{{ UI.th_location }}</th>
+                    <th>{{ UI.th_confirmed }}</th>
+                    <th>{{ UI.th_programs }}</th>
+                    <th>{{ UI.th_logistics }}</th>
+                    <th>{{ UI.th_finance }}</th>
+                    <th>{{ UI.th_media }}</th>
+                    <th>{{ UI.th_cars }}</th>
+                    <th>{{ UI.th_execution_status }}</th>
+                    <th>{{ UI.th_publication_links }}</th>
+                    <th>{{ UI.th_last_update }}</th>
+                    {# --- *** إضافة رأس عمود المقترحات *** --- #}
+                    <th>{{ UI.th_admin_suggestions }}</th>
+                    {# -------------------------------------- #}
+                    {% if (is_editor or is_admin) and selected_editor_id %}
+                        <th>{{ UI.th_actions }}</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if activities %}
+                    {% for activity in activities %}
+                    <tr id="activity-row-{{ activity.id }}">
+                        <td>{{ loop.index }}</td>
+                        <td>{{ activity.activity_date.strftime('%Y-%m-%d') if activity.activity_date else '' }}</td>
+                        <td>{{ activity.project.name if activity.project else '-' }}</td>
+                        <td>{{ activity.activity_desc | replace('\n', '<br>') | safe if activity.activity_desc else '' }}</td>
+                        <td>{{ activity.location if activity.location else '' }}</td>
+                        <td class="confirmed-{{ activity.confirmed|string|lower }}">
+                            {{ UI.confirmed if activity.confirmed else UI.unconfirmed }}
+                        </td>
+                        <td>{{ activity.team_programs if activity.team_programs else '' }}</td>
+                        <td>{{ activity.team_logistics if activity.team_logistics else '' }}</td>
+                        <td>{{ activity.team_finance if activity.team_finance else '' }}</td>
+                        <td>{{ activity.team_media if activity.team_media else '' }}</td>
+                        <td>{{ activity.team_cars if activity.team_cars else '' }}</td>
+                        <td class="exec-status-cell {{ 'executed' if activity.execution_status }}">
+                            {% if (is_editor or is_admin) and selected_editor_id %}
+                                <input type="checkbox" class="exec-status-checkbox" data-activity-id="{{ activity.id }}"
+                                       {% if activity.execution_status %}checked{% endif %} onchange="toggleExecutionStatus(this)">
+                            {% else %}
+                                {{ UI.executed if activity.execution_status else UI.not_executed }}
+                            {% endif %}
+                        </td>
+                        <td class="links-cell">
+                            {% if activity.link1 %}<a href="{{ activity.link1 }}" target="_blank" title="{{ activity.link1 }}">{{ activity.link1[:25] }}{% if activity.link1|length > 25 %}...{% endif %}</a>{% endif %}
+                            {% if activity.link2 %}<a href="{{ activity.link2 }}" target="_blank" title="{{ activity.link2 }}">{{ activity.link2[:25] }}{% if activity.link2|length > 25 %}...{% endif %}</a>{% endif %}
+                            {% if activity.link3 %}<a href="{{ activity.link3 }}" target="_blank" title="{{ activity.link3 }}">{{ activity.link3[:25] }}{% if activity.link3|length > 25 %}...{% endif %}</a>{% endif %}
+                        </td>
+                        <td class="last-update">
+                            {{ activity.last_updated_on.strftime('%Y-%m-%d %H:%M') if activity.last_updated_on else '-' }}<br>
+                            {{ UI.updated_by }}: {{ activity.last_updated_by.name if activity.last_updated_by else '-' }}
+                        </td>
+                        {# --- *** إضافة خلية بيانات المقترحات *** --- #}
+                        <td class="admin-suggestions-cell">
+                            {{ activity.admin_suggestions | replace('\n', '<br>') | safe if activity.admin_suggestions else '' }}
+                        </td>
+                        {# ----------------------------------------- #}
+                        {% if (is_editor or is_admin) and selected_editor_id %}
+                            <td class="actions">
+                                <button class="edit-btn" data-activity-id="{{ activity.id }}" onclick="openEditModal(this)">
+                                    <i class="fas fa-edit"></i> {{ UI.edit_btn }}
+                                </button>
+                                <form action="{{ url_for('delete_activity_route', activity_id=activity.id, lang=lang) }}" method="post" style="display: inline;"
+                                      onsubmit="return confirm({{ UI.confirm_delete_msg|tojson }});">
+                                    <button type="submit" class="delete-btn">
+                                        <i class="fas fa-trash-alt"></i> {{ UI.delete_btn }}
+                                    </button>
+                                </form>
+                            </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    {# --- *** تعديل colspan ليشمل العمود الجديد *** --- #}
+                    <td colspan="{{ 16 if (is_editor or is_admin) and selected_editor_id else 15 }}" style="text-align: center; padding: 20px; color: #6c757d;">
+                        {{ UI.no_activities_msg }} {{ month_name }} {{ current_year }}.
+                    </td>
+                    {# --------------------------------------------- #}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {# --- *** قسم الأنشطة القادمة *** --- #}
+    <div class="upcoming-activities-section">
+        <h3>{{ UI.upcoming_activities_title }}</h3>
+        {% if upcoming_activities %}
+            {% for upcoming in upcoming_activities %}
+            <div class="upcoming-activity-item">
+                <strong>{{ get_day_name(upcoming.activity_date, lang) }} ({{ upcoming.activity_date.strftime('%Y-%m-%d') }}):</strong>
+                {{ upcoming.project.name if upcoming.project else 'مشروع غير محدد' }} -
+                {{ upcoming.activity_desc[:60] }}{% if upcoming.activity_desc|length > 60 %}...{% endif %}
+                <span class="location">({{ upcoming.location if upcoming.location else 'مكان غير محدد' }})</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="no-upcoming">{{ UI.no_upcoming_activities }}</p>
+        {% endif %}
+    </div>
+    {# --------------------------------- #}
+
+
+</div> {# End container #}
+
+{# --- النوافذ المنبثقة (Modals) الخاصة بـ index.html --- #}
+{# ... (modals for editorLoginModal, adminLoginModal remain the same) ... #}
+<div id="editorLoginModal" class="modal"> <div class="modal-content small"> <span class="close-btn" onclick="closeModal('editorLoginModal')">&times;</span> <h5>{{ UI.login_editor }}</h5> <form action="{{ url_for('verify_code', lang=lang) }}" method="POST"> <div class="form-group"> <label for="editor_code_modal">{{ UI.verify_code_placeholder }}</label> <input type="password" class="form-control" id="editor_code_modal" name="editor_code" required> </div> <div class="modal-footer"> <button type="button" class="btn-secondary" onclick="closeModal('editorLoginModal')">{{ UI.cancel_btn }}</button> <button type="submit" class="btn-primary">{{ UI.verify_btn }}</button> </div> </form> </div> </div>
+<div id="adminLoginModal" class="modal"> <div class="modal-content small"> <span class="close-btn" onclick="closeModal('adminLoginModal')">&times;</span> <h5>{{ UI.login_admin }}</h5> <form action="{{ url_for('verify_admin_code', lang=lang) }}" method="POST"> <div class="form-group"> <label for="admin_code_modal">{{ UI.verify_admin_code_placeholder }}</label> <input type="password" class="form-control" id="admin_code_modal" name="admin_code" required> </div> <div class="modal-footer"> <button type="button" class="btn-secondary" onclick="closeModal('adminLoginModal')">{{ UI.cancel_btn }}</button> <button type="submit" class="btn-primary">{{ UI.verify_btn }}</button> </div> </form> </div> </div>
+
+{# --- تعديل مودال إضافة/تعديل النشاط ليشمل حقل المقترحات --- #}
+{% if (is_editor or is_admin) and selected_editor_id %}
+<div id="activityModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('activityModal')">&times;</span>
+        <h2 id="modalTitle">{{ UI.modal_title_add }}</h2>
+        <form id="activityForm" method="post"> {# action is set by JS #}
+            <input type="hidden" id="activity_id" name="activity_id">
+            <div class="form-columns">
+                <div> {# Column 1 #}
+                    <div class="form-group"><label for="activity_date">{{ UI.label_date }}</label><input type="date" id="activity_date" name="activity_date" required></div>
+                    <div class="form-group"><label for="project_id">{{ UI.label_project }}</label><select id="project_id" name="project_id"><option value="">{{ UI.project_none }}</option>{% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label for="activity_desc">{{ UI.label_activity }}</label><textarea id="activity_desc" name="activity_desc" rows="3" required></textarea></div>
+                    <div class="form-group"><label for="location">{{ UI.label_location }}</label><input type="text" id="location" name="location"></div>
+                    <div class="form-group"><label for="confirmed"><input type="checkbox" id="confirmed" name="confirmed" value="on"> {{ UI.label_confirmed }}</label></div>
+                    <div class="form-group"><label for="execution_status"><input type="checkbox" id="execution_status" name="execution_status" value="on"> {{ UI.label_execution_status }}</label></div>
+                </div>
+                <div> {# Column 2 #}
+                    <h3>{{ UI.label_teams }}</h3>
+                    <div class="form-group"><label for="team_programs">{{ UI.label_programs }}</label><input type="text" id="team_programs" name="team_programs"></div>
+                    <div class="form-group"><label for="team_logistics">{{ UI.label_logistics }}</label><input type="text" id="team_logistics" name="team_logistics"></div>
+                    <div class="form-group"><label for="team_finance">{{ UI.label_finance }}</label><input type="text" id="team_finance" name="team_finance"></div>
+                    <div class="form-group"><label for="team_media">{{ UI.label_media }}</label><input type="text" id="team_media" name="team_media"></div>
+                    <div class="form-group"><label for="team_cars">{{ UI.label_cars }}</label><input type="text" id="team_cars" name="team_cars"></div>
+                </div>
+            </div>
+             <hr>
+             <h3>{{ UI.label_publication_links }}</h3>
+             <div class="form-group"><label for="link1">{{ UI.label_link1 }}</label><input type="url" id="link1" name="link1" placeholder="https://..."></div>
+             <div class="form-group"><label for="link2">{{ UI.label_link2 }}</label><input type="url" id="link2" name="link2" placeholder="https://..."></div>
+             <div class="form-group"><label for="link3">{{ UI.label_link3 }}</label><input type="url" id="link3" name="link3" placeholder="https://..."></div>
+             {# --- *** إضافة حقل المقترحات الإدارية (للأدمن فقط) *** --- #}
+             {% if is_admin %}
+             <hr>
+             <div class="form-group">
+                 <label for="admin_suggestions">{{ UI.label_admin_suggestions }}</label>
+                 <textarea id="admin_suggestions" name="admin_suggestions" rows="3"></textarea>
+             </div>
+             {% endif %}
+             {# ------------------------------------------------------ #}
+            <div class="form-actions">
+                <button type="submit" class="save-btn">{{ UI.save_changes_btn }}</button>
+                <button type="button" class="cancel-btn" onclick="closeModal('activityModal')">{{ UI.cancel_btn }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{# -------------------------------------------------------------- #}
+
+{% endblock %}
+
+
+{# --- Block: سكربتات JavaScript الخاصة بهذه الصفحة --- #}
+{% block scripts %}
+{# --- تضمين قاموس النصوص كـ JSON --- #}
+<script id="ui-texts" type="application/json">{{ UI | tojson | safe }}</script>
+
+{# --- الـ JavaScript الرئيسي --- #}
+<script>
+    let UI_TEXTS;
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+        try { UI_TEXTS = JSON.parse(document.getElementById('ui-texts').textContent); }
+        catch (e) { console.error("Error parsing UI_TEXTS JSON:", e); UI_TEXTS = {}; }
+
+        const activityForm = document.getElementById('activityForm');
+        if (activityForm) {
+            activityForm.addEventListener('submit', function(event) { /* Validation if needed */ });
+        } else { console.log("Activity form not found."); }
+    });
+
+    function openModal(modalId) { /* ... (كما هي) ... */
+        const modal = document.getElementById(modalId);
+        if (modal) modal.style.display = 'block';
+        else console.error(`Modal with ID ${modalId} not found.`);
+    }
+    function closeModal(modalId) { /* ... (كما هي مع form.reset) ... */
+        const modal = document.getElementById(modalId);
+        if (modal) {
+             modal.style.display = 'none';
+             const form = modal.querySelector('form');
+             if (form) form.reset();
+        }
+    }
+    window.onclick = function(event) { /* ... (كما هي) ... */
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => { if (event.target == modal) closeModal(modal.id); });
+    }
+
+    function openAddModal() { /* ... (كما هي، مع التأكد من إعادة تعيين حقل المقترحات إذا كان موجوداً) ... */
+        const modal = document.getElementById('activityModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const activityForm = document.getElementById('activityForm');
+        const activityIdField = document.getElementById('activity_id');
+        if (!modal || !modalTitle || !activityForm || !activityIdField || !UI_TEXTS) return;
+        modalTitle.innerText = UI_TEXTS.modal_title_add;
+        activityForm.action = `{{ url_for('add_activity', lang=lang) }}`;
+        activityIdField.value = '';
+        activityForm.reset(); // This should also clear the admin_suggestions textarea if it exists
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const activityDateField = document.getElementById('activity_date');
+        if(activityDateField) activityDateField.value = `${yyyy}-${mm}-${dd}`;
+        openModal('activityModal');
+    }
+
+    // --- *** تعديل openEditModal لجلب وملء حقل المقترحات *** ---
+    function openEditModal(buttonElement) {
+         const modal = document.getElementById('activityModal');
+         const modalTitle = document.getElementById('modalTitle');
+         const activityForm = document.getElementById('activityForm');
+         const activityIdField = document.getElementById('activity_id');
+         // --- *** الحصول على عنصر textarea المقترحات (إذا كان موجوداً) *** ---
+         const adminSuggestionsField = document.getElementById('admin_suggestions');
+         // --------------------------------------------------------------
+
+         if (!modal || !modalTitle || !activityForm || !activityIdField || !UI_TEXTS) return;
+
+         const activityId = buttonElement.dataset.activityId;
+         modalTitle.innerText = `${UI_TEXTS.modal_title_edit} ${activityId}`;
+         activityForm.action = `{{ url_for('edit_activity', activity_id=0, lang=lang) }}`.replace('/0', `/${activityId}`);
+         activityIdField.value = activityId;
+         activityForm.reset(); // Reset before populating
+
+         const fetchUrl = `{{ url_for('get_activity_data', activity_id=0, lang=lang) }}`.replace('/0', `/${activityId}`);
+         fetch(fetchUrl)
+            .then(response => { /* ... (Error handling as before) ... */
+                if (!response.ok) {
+                     return response.json().then(errData => { throw new Error(errData.error || `Network response was not ok (${response.status})`); })
+                           .catch(() => { throw new Error(`Network response was not ok (${response.status})`); });
+                } return response.json();
+            })
+            .then(data => {
+                if(data.error){ throw new Error(data.error); }
+                console.log("Received data for edit:", data);
+                // Populate standard fields
+                const dateField = document.getElementById('activity_date'); if(dateField) dateField.value = data.activity_date || '';
+                const projectField = document.getElementById('project_id'); if(projectField) projectField.value = data.project_id || '';
+                const descField = document.getElementById('activity_desc'); if(descField) descField.value = data.activity_desc || '';
+                const locationField = document.getElementById('location'); if(locationField) locationField.value = data.location || '';
+                const confirmedField = document.getElementById('confirmed'); if(confirmedField) confirmedField.checked = data.confirmed || false;
+                const execStatusField = document.getElementById('execution_status'); if(execStatusField) execStatusField.checked = data.execution_status || false;
+                const programsField = document.getElementById('team_programs'); if(programsField) programsField.value = data.team_programs || '';
+                const logisticsField = document.getElementById('team_logistics'); if(logisticsField) logisticsField.value = data.team_logistics || '';
+                const financeField = document.getElementById('team_finance'); if(financeField) financeField.value = data.team_finance || '';
+                const mediaField = document.getElementById('team_media'); if(mediaField) mediaField.value = data.team_media || '';
+                const carsField = document.getElementById('team_cars'); if(carsField) carsField.value = data.team_cars || '';
+                const link1Field = document.getElementById('link1'); if(link1Field) link1Field.value = data.link1 || '';
+                const link2Field = document.getElementById('link2'); if(link2Field) link2Field.value = data.link2 || '';
+                const link3Field = document.getElementById('link3'); if(link3Field) link3Field.value = data.link3 || '';
+
+                // --- *** ملء حقل المقترحات (فقط إذا كان الحقل موجوداً في النموذج) *** ---
+                if (adminSuggestionsField) {
+                    adminSuggestionsField.value = data.admin_suggestions || '';
+                }
+                // -------------------------------------------------------------------
+
+                openModal('activityModal'); // Open modal after populating
+            })
+            .catch(error => {
+                console.error('Error fetching activity data:', error);
+                alert(`${UI_TEXTS.fetch_activity_error}\n${error.message}`);
+            });
+    }
+    // ----------------------------------------------------------
+
+    function toggleExecutionStatus(checkboxElement) { /* ... (كما هي) ... */
+        const activityId = checkboxElement.dataset.activityId; const isChecked = checkboxElement.checked; const cell = checkboxElement.closest('td');
+        const toggleUrl = `{{ url_for('toggle_execution_status', activity_id=0, lang=lang) }}`.replace('/0', `/${activityId}`);
+        fetch(toggleUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', /* 'X-CSRFToken': '...' */ }, })
+        .then(response => { if (!response.ok) { return response.json().then(errData => { throw new Error(errData.message || `Network response was not ok (${response.status})`); }).catch(() => { throw new Error(`Network response was not ok (${response.status})`); }); } return response.json(); })
+        .then(data => { if (data.success) { if (data.new_status) { cell.classList.add('executed'); } else { cell.classList.remove('executed'); } console.log(`Activity ${activityId} execution status updated to ${data.new_status}`); } else { checkboxElement.checked = !isChecked; alert(data.message || 'Failed to update status.'); } })
+        .catch(error => { console.error('Error toggling execution status:', error); checkboxElement.checked = !isChecked; alert(`Error updating execution status: ${error.message}`); });
+    }
+
+</script>
+{% endblock %}
