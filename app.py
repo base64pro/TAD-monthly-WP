@@ -3,6 +3,7 @@
 # النسخة المحدثة مع إصلاح حقل الحالة وإيقاف WeasyPrint وإزالة رموز الدخول الافتراضية
 # تم تمكين app.run() للتشغيل المحلي
 # تم تعديل نص UI لـ updated_by
+# تم إضافة تسجيل أخطاء مفصل لجلب المحررين والمشاريع
 
 import os
 import sys
@@ -10,18 +11,18 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
 from functools import wraps
-import traceback
-from urllib.parse import quote, unquote # استيراد unquote
+import traceback # <-- استيراد traceback لتسجيل الأخطاء التفصيلية
+from urllib.parse import quote, unquote
 from flask import (
     Flask, render_template, url_for, request,
     redirect, session, flash, jsonify, Response, make_response
 )
 from dotenv import load_dotenv
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError # <-- استيراد SQLAlchemyError
 
 # استيراد db و النماذج
 from extensions import db
-from models import Activity, Project, Editor # تأكد من أن models.py محدث
+from models import Activity, Project, Editor
 
 # --- تعطيل WeasyPrint ---
 WEASYPRINT_AVAILABLE = False
@@ -42,17 +43,16 @@ DAYS_OF_WEEK = {
     'en': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 }
 
-# --- قاموس النصوص (UI_TEXTS) - (تم إضافة نص لتعطيل PDF وتعديل updated_by) ---
+# --- قاموس النصوص (UI_TEXTS) ---
+# (يبقى كما هو من التحديث السابق)
 UI_TEXTS = {
     'ar': {
-        # --- نصوص عامة ---
         'monthly_plan': "خطة العمل الشهرية", 'org_name': "جمعية التحرير للتنمية",
         'plan_for': "خطة عمل شهر", 'prev_month': "الشهر السابق", 'next_month': "الشهر التالي",
         'cancel_btn': "إلغاء", 'save_changes_btn': "حفظ التغييرات",
         'required_field': 'هذا الحقل مطلوب.', 'fetch_error': "حدث خطأ أثناء جلب البيانات.",
         'no_activities_msg': "لا توجد أنشطة لعرضها لشهر",
-        'updated_by': "", # <-- تم إزالة "بواسطة"
-        # --- عناوين وتسميات الجدول ---
+        'updated_by': "",
         'th_id': "ت", 'th_date': "التاريخ", 'th_project': "المشروع والمانح",
         'th_activity': "النشاط", 'th_location': "موقع التنفيذ",
         'th_status': "الحالة",
@@ -60,9 +60,7 @@ UI_TEXTS = {
         'th_media': "الميديا", 'th_cars': "السيارات",
         'th_publication_links': "روابط النشر", 'th_last_update': "آخر تحديث",
         'th_admin_suggestions': "مقترحات/توصيات ادارية", 'th_actions': "إجراءات",
-        # --- نصوص الحالة ---
         'unconfirmed': "غير مؤكد", 'confirmed': "مؤكد", 'executed': "منفذ",
-        # --- نصوص النموذج (Modal) ---
         'modal_title_add': "إضافة نشاط جديد", 'modal_title_edit': "تعديل النشاط رقم",
         'label_date': "التاريخ:", 'label_project': "المشروع والمانح:",
         'label_activity': "النشاط:", 'label_location': "موقع التنفيذ:",
@@ -74,10 +72,8 @@ UI_TEXTS = {
         'label_link1': "الرابط 1:", 'label_link2': "الرابط 2:", 'label_link3': "الرابط 3:",
         'label_admin_suggestions': "مقترحات/توصيات ادارية (للأدمن):",
         'project_none': "-- لا يوجد --",
-        # --- نصوص الأنشطة القادمة ---
         'upcoming_activities_title': "أنشطة خلال الثلاث أيام القادمة",
         'no_upcoming_activities': "لا توجد أنشطة مجدولة خلال الأيام الثلاثة القادمة.",
-        # --- نصوص الأزرار والرسائل ---
         'add_activity_btn': "إضافة نشاط جديد +", 'edit_btn': "تعديل", 'delete_btn': "حذف",
         'confirm_delete_msg': "هل أنت متأكد من حذف هذا النشاط؟",
         'activity_deleted_success': "تم حذف النشاط بنجاح.", 'activity_deleted_error': "حدث خطأ أثناء حذف النشاط.",
@@ -86,7 +82,6 @@ UI_TEXTS = {
         'activity_added_error': "حدث خطأ أثناء إضافة النشاط.", 'activity_updated_success': "تم تحديث النشاط بنجاح!",
         'activity_updated_error': "حدث خطأ أثناء تحديث النشاط.",
         'fetch_activity_error': "حدث خطأ أثناء جلب بيانات النشاط للتعديل.",
-        # --- نصوص تسجيل الدخول والمستخدم ---
         'login_editor': "الدخول كـ محرر", 'verify_code_placeholder': "أدخل رمز المحرر",
         'verify_btn': "تحقق", 'editor_mode_active': "وضع التحرير", 'editor_label': "المحرر",
         'logout_btn': "خروج", 'code_correct': "الرمز صحيح! يرجى اختيار اسم المحرر.",
@@ -100,11 +95,9 @@ UI_TEXTS = {
         'admin_mode_active': "وضع Admin", 'settings_btn': "الإعدادات",
         'admin_logout_msg': "تم الخروج من وضع Admin.",
         'admin_required_warning': "يجب الدخول كـ Admin للوصول لهذه الصفحة.",
-        # --- نصوص التصدير ---
         'export_pdf_btn': "تصدير PDF", 'pdf_export_error': "حدث خطأ أثناء تصدير PDF.",
-        'weasyprint_not_found': "مكتبة WeasyPrint غير موجودة. لا يمكن تصدير PDF.", # يمكن تركها أو تغييرها
-        'pdf_export_disabled': "تصدير PDF معطل حالياً.", # <-- نص جديد
-        # --- نصوص الإعدادات (تبقى كما هي) ---
+        'weasyprint_not_found': "مكتبة WeasyPrint غير موجودة. لا يمكن تصدير PDF.",
+        'pdf_export_disabled': "تصدير PDF معطل حالياً.",
         'admin_settings_title': "إعدادات النظام", 'manage_editors': "إدارة المحررين",
         'manage_projects': "إدارة المشاريع", 'add_editor_btn': "إضافة محرر جديد +",
         'add_project_btn': "إضافة مشروع جديد +", 'label_editor_name': "اسم المحرر:",
@@ -126,14 +119,13 @@ UI_TEXTS = {
         'get_editor_error': 'خطأ في جلب بيانات المحرر للتعديل.', 'get_project_error': 'خطأ في جلب بيانات المشروع للتعديل.',
     },
     'en': {
-        # --- General Texts ---
+        # ... (English texts) ...
         'monthly_plan': "Monthly Work Plan", 'org_name': "Al-Tahrir Association for Development",
         'plan_for': "Work Plan for", 'prev_month': "Previous Month", 'next_month': "Next Month",
         'cancel_btn': "Cancel", 'save_changes_btn': "Save Changes",
         'required_field': 'This field is required.', 'fetch_error': "Error fetching data.",
         'no_activities_msg': "No activities to display for",
-        'updated_by': "", # <-- Removed "By"
-        # --- Table Headers and Labels ---
+        'updated_by': "",
         'th_id': "ID", 'th_date': "Date", 'th_project': "Project & Donor",
         'th_activity': "Activity", 'th_location': "Location",
         'th_status': "Status",
@@ -141,9 +133,7 @@ UI_TEXTS = {
         'th_media': "Media", 'th_cars': "Cars",
         'th_publication_links': "Publ. Links", 'th_last_update': "Last Update",
         'th_admin_suggestions': "Admin Suggestions/Recommendations", 'th_actions': "Actions",
-        # --- Status Texts ---
         'unconfirmed': "Unconfirmed", 'confirmed': "Confirmed", 'executed': "Executed",
-        # --- Form (Modal) Texts ---
         'modal_title_add': "Add New Activity", 'modal_title_edit': "Edit Activity ID",
         'label_date': "Date:", 'label_project': "Project & Donor:",
         'label_activity': "Activity:", 'label_location': "Location:",
@@ -155,10 +145,8 @@ UI_TEXTS = {
         'label_link1': "Link 1:", 'label_link2': "Link 2:", 'label_link3': "Link 3:",
         'label_admin_suggestions': "Admin Suggestions/Recommendations (Admin Only):",
         'project_none': "-- None --",
-        # --- Upcoming Activities Texts ---
         'upcoming_activities_title': "Activities Within Next 3 Days",
         'no_upcoming_activities': "No activities scheduled within the next 3 days.",
-        # --- Buttons and Messages ---
         'add_activity_btn': "Add New Activity +", 'edit_btn': "Edit", 'delete_btn': "Delete",
         'confirm_delete_msg': "Are you sure you want to delete this activity?",
         'activity_deleted_success': "Activity deleted successfully.", 'activity_deleted_error': "Error deleting activity.",
@@ -167,7 +155,6 @@ UI_TEXTS = {
         'activity_added_error': "Error adding activity.", 'activity_updated_success': "Activity updated successfully!",
         'activity_updated_error': "Error updating activity.",
         'fetch_activity_error': "Error fetching activity data for editing.",
-        # --- Login and User Texts ---
         'login_editor': "Login as Editor", 'verify_code_placeholder': "Enter Editor Code",
         'verify_btn': "Verify", 'editor_mode_active': "Editor Mode", 'editor_label': "Editor",
         'logout_btn': "Logout", 'code_correct': "Code correct! Please select editor name.",
@@ -181,11 +168,9 @@ UI_TEXTS = {
         'admin_mode_active': "Admin Mode", 'settings_btn': "Settings",
         'admin_logout_msg': "Logged out from Admin mode.",
         'admin_required_warning': "You must be logged in as an Admin to access this page.",
-        # --- Export Texts ---
         'export_pdf_btn': "Export PDF", 'pdf_export_error': "Error exporting PDF.",
         'weasyprint_not_found': "WeasyPrint library not found. PDF export disabled.",
-        'pdf_export_disabled': "Exporting to PDF is currently disabled.", # <-- New text
-        # --- Settings Texts (remain the same) ---
+        'pdf_export_disabled': "Exporting to PDF is currently disabled.",
         'admin_settings_title': "System Settings", 'manage_editors': "Manage Editors",
         'manage_projects': "Manage Projects", 'add_editor_btn': "Add New Editor +",
         'add_project_btn': "Add New Project +", 'label_editor_name': "Editor Name:",
@@ -234,10 +219,10 @@ if not using_postgres:
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 print(f"--- INFO: Final SQLALCHEMY_DATABASE_URI set.")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') # الاعتماد على .env أو متغيرات البيئة
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 if not app.config['SECRET_KEY']:
     print("--- CRITICAL ERROR: SECRET_KEY not set in environment variables or .env file. Application will not run securely.")
-    sys.exit("SECRET_KEY is not set.") # إيقاف التطبيق إذا لم يتم تعيين المفتاح السري
+    sys.exit("SECRET_KEY is not set.")
 
 # قراءة رموز الدخول من متغيرات البيئة
 EDITOR_CODE = os.environ.get('EDITOR_CODE')
@@ -250,9 +235,8 @@ if not ADMIN_CODE:
 
 
 # --- دوال مساعدة ووظائف دعم اللغات ---
-
+# (تبقى كما هي)
 def editor_required(f):
-    """Decorator to ensure user is logged in as Editor or Admin AND has selected an editor name."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         lang = get_locale()
@@ -282,7 +266,6 @@ def editor_required(f):
     return decorated_function
 
 def admin_required(f):
-    """Decorator to ensure user is logged in as Admin."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         lang = get_locale()
@@ -304,22 +287,17 @@ def admin_required(f):
     return decorated_function
 
 def get_locale():
-    """Gets the current language from session or default."""
     return session.get('lang', DEFAULT_LANGUAGE)
 
 def get_text(key, **kwargs):
-    """Gets translated text for a key, allowing keyword arguments for formatting."""
     lang = get_locale()
     text = UI_TEXTS.get(lang, UI_TEXTS[DEFAULT_LANGUAGE]).get(key, key)
     try:
         return text.format(**kwargs)
     except (KeyError, TypeError, IndexError):
-        # Log the error for debugging
-        # print(f"--- WARNING: Formatting error for key '{key}' in lang '{lang}'. Text: '{text}', Args: {kwargs}")
-        return text # Return the unformatted text
+        return text
 
 def get_day_name(date_obj, lang):
-    """Returns the localized name of the day of the week."""
     if not isinstance(date_obj, date):
         return ""
     day_index = date_obj.weekday()
@@ -330,7 +308,6 @@ def get_day_name(date_obj, lang):
 
 @app.context_processor
 def inject_language_vars():
-    """Injects language settings, user status, and helper functions into templates."""
     lang = get_locale()
     is_admin = session.get('is_admin', False)
     is_editor = session.get('is_editor', False)
@@ -340,7 +317,7 @@ def inject_language_vars():
         lang=lang,
         lang_dir=LANGUAGES.get(lang, {}).get('dir', 'rtl'),
         UI=UI_TEXTS.get(lang, UI_TEXTS[DEFAULT_LANGUAGE]),
-        WEASYPRINT_AVAILABLE=WEASYPRINT_AVAILABLE, # لا يزال يمرر الحالة (False)
+        WEASYPRINT_AVAILABLE=WEASYPRINT_AVAILABLE,
         is_admin=is_admin,
         is_editor=is_editor,
         selected_editor_id=editor_id,
@@ -350,7 +327,7 @@ def inject_language_vars():
     )
 
 # --- إنشاء الجداول والبيانات الأولية ---
-# (الكود هنا يبقى كما هو - يفترض أن البيانات الأولية صحيحة مع حقل status)
+# (الكود هنا يبقى كما هو)
 with app.app_context():
     print("--- INFO: Initializing DB within app context...")
     try:
@@ -358,8 +335,7 @@ with app.app_context():
         print("--- INFO: DB initialized with app.")
         db.create_all()
         print("--- INFO: DB tables created (if not exist).")
-
-        # إضافة البيانات الأولية (تأكد من صحتها مع حقل status)
+        # ... (الكود الخاص بالبيانات الأولية يبقى كما هو) ...
         if not Project.query.first():
             print("--- INFO: Adding initial projects...")
             p1 = Project(name="مشروع ألفا")
@@ -394,7 +370,6 @@ with app.app_context():
             tomorrow = today + timedelta(days=1)
             day_after_tomorrow = today + timedelta(days=2)
 
-            # استخدام حقل status بدلاً من confirmed/execution_status
             a1 = Activity(activity_date=today, project_id=default_project.id, activity_desc="نشاط تجريبي للشهر الحالي.", location="المكتب الرئيسي", status=1, team_programs="فريق أ", last_updated_by_id=default_editor.id) # مؤكد
             a2 = Activity(activity_date=next_month_date.replace(day=15), project_id=default_project.id, activity_desc="نشاط تجريبي للشهر القادم.", location="الموقع الميداني", status=2, team_programs="فريق ب", last_updated_by_id=default_editor.id, link1="https://example.com/report1") # منفذ
             a3 = Activity(activity_date=tomorrow, project_id=project_beta.id, activity_desc="نشاط تجريبي للغد.", location="القاعة الكبرى", status=1, team_programs="فريق ج", last_updated_by_id=editor_fatima.id, admin_suggestions="تأكد من جاهزية العرض التقديمي.") # مؤكد
@@ -444,25 +419,58 @@ def monthly_plan(lang=None, year=None, month=None):
 
     activities, editors, projects, upcoming_activities = [], [], [], []
     try:
+        # جلب الأنشطة
         activities = Activity.query.options(
             db.joinedload(Activity.project), db.joinedload(Activity.last_updated_by)
         ).filter(
             Activity.activity_date >= start_date, Activity.activity_date <= end_date
         ).order_by(Activity.activity_date, Activity.id).all()
 
-        editors = Editor.query.order_by(Editor.name).all()
-        projects = Project.query.order_by(Project.name).all()
+        # --- *** تعديل: جلب المحررين والمشاريع مع تسجيل أخطاء مفصل *** ---
+        try:
+            editors = Editor.query.order_by(Editor.name).all()
+        except SQLAlchemyError as e_editors:
+            print(f"--- DATABASE ERROR fetching editors: {e_editors}")
+            traceback.print_exc() # طباعة تفاصيل الخطأ في السجل
+            editors = [] # تعيين قائمة فارغة لتجنب خطأ في القالب
+            flash(get_text('fetch_error'), "danger") # إظهار رسالة خطأ عامة للمستخدم
+        except Exception as e_general_editors:
+            print(f"--- UNEXPECTED ERROR fetching editors: {e_general_editors}")
+            traceback.print_exc()
+            editors = []
+            flash(get_text('fetch_error'), "danger")
 
+        try:
+            projects = Project.query.order_by(Project.name).all()
+        except SQLAlchemyError as e_projects:
+            print(f"--- DATABASE ERROR fetching projects: {e_projects}")
+            traceback.print_exc()
+            projects = []
+            flash(get_text('fetch_error'), "danger")
+        except Exception as e_general_projects:
+            print(f"--- UNEXPECTED ERROR fetching projects: {e_general_projects}")
+            traceback.print_exc()
+            projects = []
+            flash(get_text('fetch_error'), "danger")
+        # --- *** نهاية التعديل *** ---
+
+        # جلب الأنشطة القادمة
         today = date.today()
-        three_days_later = today + timedelta(days=2) # تعديل لحساب يومين بعد اليوم
+        three_days_later = today + timedelta(days=2)
         upcoming_activities = Activity.query.options(
             db.joinedload(Activity.project)
         ).filter(
             Activity.activity_date >= today, Activity.activity_date <= three_days_later,
-            Activity.status != 2 # استبعاد الأنشطة المنفذة
+            Activity.status != 2
         ).order_by(Activity.activity_date).all()
-    except Exception as e:
-        print(f"--- ERROR fetching data for {year}-{month}: {e}"); traceback.print_exc()
+
+    except SQLAlchemyError as e_activities: # التقاط أخطاء SQLAlchemy للأنشطة أيضاً
+        print(f"--- DATABASE ERROR fetching activities: {e_activities}")
+        traceback.print_exc()
+        flash(get_text('fetch_error'), "danger")
+    except Exception as e_general: # التقاط أي أخطاء عامة أخرى
+        print(f"--- UNEXPECTED ERROR in monthly_plan data fetching: {e_general}")
+        traceback.print_exc()
         flash(get_text('fetch_error'), "danger")
 
     next_month_date = start_date + relativedelta(months=1)
@@ -481,12 +489,12 @@ def monthly_plan(lang=None, year=None, month=None):
                            upcoming_activities=upcoming_activities)
 
 # --- مسارات التحقق وتسجيل الخروج ---
+# (تبقى كما هي)
 @app.route('/verify-code', methods=['POST'])
 def verify_code():
     entered_code = request.form.get('editor_code')
     lang = get_locale()
     redirect_url = request.referrer or url_for('monthly_plan', lang=lang)
-    # التحقق من أن EDITOR_CODE تم تحميله
     if EDITOR_CODE and entered_code == EDITOR_CODE:
         session['is_editor'] = True
         session.pop('is_admin', None)
@@ -501,14 +509,12 @@ def verify_admin_code():
     entered_code = request.form.get('admin_code')
     lang = get_locale()
     redirect_url = request.referrer or url_for('monthly_plan', lang=lang)
-    # التحقق من أن ADMIN_CODE تم تحميله
     if ADMIN_CODE and entered_code == ADMIN_CODE:
         session['is_admin'] = True
-        session['is_editor'] = True # Admin يعتبر Editor أيضاً
+        session['is_editor'] = True
         flash(get_text('code_correct'), 'success')
     else:
         session.pop('is_admin', None)
-        # لا تقم بإزالة is_editor إذا كان قد سجل دخوله كمحرر سابقاً
         flash(get_text('code_incorrect'), 'danger')
     return redirect(redirect_url)
 
@@ -551,7 +557,8 @@ def logout():
     return redirect(url_for('monthly_plan', lang=lang))
 
 
-# --- مسارات CRUD للأنشطة (مُحدّثة لاستخدام status) ---
+# --- مسارات CRUD للأنشطة ---
+# (تبقى كما هي)
 @app.route('/add', methods=['POST'])
 @editor_required
 def add_activity():
@@ -583,20 +590,13 @@ def add_activity():
         link3 = request.form.get('link3', '').strip()
         project_id_str = request.form.get('project_id')
         project_id = int(project_id_str) if project_id_str and project_id_str.isdigit() else None
-
-        # --- قراءة قيمة status من القائمة المنسدلة ---
         status_str = request.form.get('status')
-        status = 0 # Default to unconfirmed
+        status = 0
         if status_str and status_str.isdigit():
             temp_status = int(status_str)
-            if temp_status in [0, 1, 2]:
-                status = temp_status
-            else:
-                 print(f"--- ADD WARN: Invalid status value received: {status_str}. Defaulting to 0.")
-        else:
-             print(f"--- ADD WARN: Status value not received or not digit: {status_str}. Defaulting to 0.")
-        # ---------------------------------------------
-
+            if temp_status in [0, 1, 2]: status = temp_status
+            else: print(f"--- ADD WARN: Invalid status value received: {status_str}. Defaulting to 0.")
+        else: print(f"--- ADD WARN: Status value not received or not digit: {status_str}. Defaulting to 0.")
         admin_suggestions = None
         if session.get('is_admin'):
             admin_suggestions = request.form.get('admin_suggestions', '').strip() or None
@@ -604,7 +604,6 @@ def add_activity():
         errors = False
         if not activity_date_str: flash(get_text('required_field') + f" ({get_text('label_date')})", 'danger'); errors = True
         if not activity_desc: flash(get_text('required_field') + f" ({get_text('label_activity')})", 'danger'); errors = True
-        # لا نحتاج للتحقق من status هنا لأنه مطلوب في النموذج وله قيمة افتراضية
         if errors: print("--- ADD: Validation errors found."); return redirect(redirect_url)
 
         try:
@@ -617,9 +616,7 @@ def add_activity():
 
         new_activity = Activity(
             activity_date=activity_date, project_id=project_id, activity_desc=activity_desc,
-            location=location or None,
-            status=status, # <-- استخدام قيمة status المقروءة
-            team_programs=team_programs or None,
+            location=location or None, status=status, team_programs=team_programs or None,
             team_logistics=team_logistics or None, team_finance=team_finance or None,
             team_media=team_media or None, team_cars=team_cars or None,
             link1=link1 or None, link2=link2 or None, link3=link3 or None,
@@ -656,21 +653,13 @@ def edit_activity(activity_id):
         link3 = request.form.get('link3', '').strip()
         project_id_str = request.form.get('project_id')
         project_id = int(project_id_str) if project_id_str and project_id_str.isdigit() else None
-
-        # --- قراءة قيمة status من القائمة المنسدلة ---
         status_str = request.form.get('status')
-        status = activity_to_edit.status # Default to current status if invalid
+        status = activity_to_edit.status
         if status_str and status_str.isdigit():
             temp_status = int(status_str)
-            if temp_status in [0, 1, 2]:
-                status = temp_status
-                print(f"--- EDIT: Status received for ID {activity_id}: {status}")
-            else:
-                 print(f"--- EDIT WARN: Invalid status value received: {status_str}. Keeping original status {activity_to_edit.status}.")
-        else:
-             print(f"--- EDIT WARN: Status value not received or not digit: {status_str}. Keeping original status {activity_to_edit.status}.")
-        # ---------------------------------------------
-
+            if temp_status in [0, 1, 2]: status = temp_status
+            else: print(f"--- EDIT WARN: Invalid status value received: {status_str}. Keeping original status {activity_to_edit.status}.")
+        else: print(f"--- EDIT WARN: Status value not received or not digit: {status_str}. Keeping original status {activity_to_edit.status}.")
         admin_suggestions = activity_to_edit.admin_suggestions
         if session.get('is_admin'):
             submitted_suggestions = request.form.get('admin_suggestions', '__DEFAULT__')
@@ -694,7 +683,7 @@ def edit_activity(activity_id):
         activity_to_edit.project_id = project_id
         activity_to_edit.activity_desc = activity_desc
         activity_to_edit.location = location or None
-        activity_to_edit.status = status # <-- تحديث قيمة status
+        activity_to_edit.status = status
         activity_to_edit.team_programs = team_programs or None
         activity_to_edit.team_logistics = team_logistics or None
         activity_to_edit.team_finance = team_finance or None
@@ -745,7 +734,7 @@ def get_activity_data(activity_id):
             'project_id': activity.project_id,
             'activity_desc': activity.activity_desc,
             'location': activity.location,
-            'status': activity.status, # <-- إرجاع الحقل الجديد status
+            'status': activity.status,
             'team_programs': activity.team_programs,
             'team_logistics': activity.team_logistics,
             'team_finance': activity.team_finance,
@@ -761,10 +750,8 @@ def get_activity_data(activity_id):
         print(f"--- ERROR fetching activity data for edit {activity_id}: {e}"); traceback.print_exc()
         return jsonify({'error': get_text('fetch_activity_error')}), 500
 
-# --- إزالة مسار toggle_execution_status ---
-
-
-# --- مسارات الإعدادات (تبقى كما هي) ---
+# --- مسارات الإعدادات ---
+# (تبقى كما هي)
 @app.route('/admin/settings')
 @admin_required
 def admin_settings():
@@ -911,7 +898,6 @@ def export_pdf(year, month):
 
 # --- تشغيل التطبيق ---
 if __name__ == '__main__':
-    # --- التحقق من وجود المتغيرات الأساسية ---
     if not app.config['SECRET_KEY']:
         sys.exit("--- CRITICAL ERROR: SECRET_KEY is not set. Exiting.")
     if not EDITOR_CODE or not ADMIN_CODE:
@@ -930,6 +916,4 @@ if __name__ == '__main__':
 
     # --- تشغيل خادم التطوير المحلي ---
     # هذا السطر يجب أن يكون **معطلاً (commented out)** عند الرفع على Render
-    # Render يستخدم Gunicorn (المحدد في Procfile) لتشغيل التطبيق.
-    # قم بإزالة التعليق فقط عند التشغيل محلياً للتجربة.
     # app.run(host='0.0.0.0', port=port, debug=is_debug_mode)
