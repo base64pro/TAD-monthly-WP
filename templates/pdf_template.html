@@ -3,81 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ title }}</title>
-    {# لا نحتاج لـ CSS هنا لأنه سيتم تمريره من app.py #}
+    {# لا نحتاج لـ CSS هنا لأنه سيتم تمريره من app.py, لكن يمكن إضافة خطوط هنا إذا أردنا #}
+    <style>
+        /* يمكن إضافة خطوط احتياطية هنا إذا لزم الأمر */
+        body { font-family: 'DejaVu Sans', Arial, sans-serif; } /* خط يدعم العربية */
+    </style>
 </head>
 <body>
     <div class="header">
         <div class="title">{{ title }}</div>
+        {# يمكن إضافة شعار أو معلومات إضافية هنا #}
+        {# <img src="/path/to/logo.png" alt="Logo" style="height: 40px; margin-bottom: 5px;"> #}
     </div>
 
     <table>
         <thead>
             <tr>
-                {# استخدام UI لتحديد العناوين #}
+                {# استخدام UI لتحديد العناوين - تم التعديل #}
                 <th>{{ UI.th_id }}</th>
                 <th>{{ UI.th_date }}</th>
                 <th>{{ UI.th_project }}</th>
                 <th>{{ UI.th_activity }}</th>
                 <th>{{ UI.th_location }}</th>
-                <th>{{ UI.th_confirmed }}</th>
+                <th>{{ UI.th_status }}</th> {# <-- تم تغيير العنوان #}
                 <th>{{ UI.th_programs }}</th>
                 <th>{{ UI.th_logistics }}</th>
                 <th>{{ UI.th_finance }}</th>
                 <th>{{ UI.th_media }}</th>
                 <th>{{ UI.th_cars }}</th>
-                <th>{{ UI.th_execution_status }}</th>
+                {# --- عمود حالة التنفيذ محذوف --- #}
                 <th>{{ UI.th_publication_links }}</th>
                 <th>{{ UI.th_last_update }}</th>
-                {# --- *** إضافة رأس عمود المقترحات *** --- #}
                 <th>{{ UI.th_admin_suggestions }}</th>
-                {# -------------------------------------- #}
             </tr>
         </thead>
         <tbody>
             {% if activities %}
                 {% for activity in activities %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>{{ activity.activity_date.strftime('%Y-%m-%d') if activity.activity_date else '' }}</td>
-                    <td>{{ activity.project.name if activity.project else '-' }}</td>
-                    <td>{{ activity.activity_desc | replace('\n', '<br>') | safe if activity.activity_desc else '' }}</td>
-                    <td>{{ activity.location if activity.location else '' }}</td>
-                    <td class="confirmed-{{ activity.confirmed|string|lower }}">
-                        {{ UI.confirmed if activity.confirmed else UI.unconfirmed }}
+                {# إضافة كلاس الحالة للصف لتسهيل التنسيق عبر CSS في app.py #}
+                {# إزالة الكلاسات القديمة confirmed- / exec- #}
+                <tr class="activity-row status-{{ activity.status }}">
+                    <td class="cell-id">{{ loop.index }}</td>
+                    <td class="cell-date">{{ activity.activity_date.strftime('%Y-%m-%d') if activity.activity_date else '' }}</td>
+                    <td class="cell-project">{{ activity.project.name if activity.project else '-' }}</td>
+                    {# استخدام safe بعد replace لضمان عرض <br> بشكل صحيح #}
+                    <td class="cell-activity">{{ activity.activity_desc | replace('\n', '<br>') | safe if activity.activity_desc else '' }}</td>
+                    <td class="cell-location">{{ activity.location if activity.location else '' }}</td>
+                    {# --- تعديل خلية الحالة --- #}
+                    <td class="cell-status"> {# إضافة كلاس خاص لتسهيل استهدافه في CSS #}
+                        {% if activity.status == 1 %}
+                            {{ UI.confirmed }}
+                        {% elif activity.status == 2 %}
+                            {{ UI.executed }}
+                        {% else %} {# الافتراضي هو 0 #}
+                            {{ UI.unconfirmed }}
+                        {% endif %}
                     </td>
-                    <td>{{ activity.team_programs if activity.team_programs else '' }}</td>
-                    <td>{{ activity.team_logistics if activity.team_logistics else '' }}</td>
-                    <td>{{ activity.team_finance if activity.team_finance else '' }}</td>
-                    <td>{{ activity.team_media if activity.team_media else '' }}</td>
-                    <td>{{ activity.team_cars if activity.team_cars else '' }}</td>
-                    <td class="exec-{{ activity.execution_status|string|lower }}">
-                        {{ UI.executed if activity.execution_status else UI.not_executed }}
+                    {# ------------------------- #}
+                    <td class="cell-programs">{{ activity.team_programs if activity.team_programs else '' }}</td>
+                    <td class="cell-logistics">{{ activity.team_logistics if activity.team_logistics else '' }}</td>
+                    <td class="cell-finance">{{ activity.team_finance if activity.team_finance else '' }}</td>
+                    <td class="cell-media">{{ activity.team_media if activity.team_media else '' }}</td>
+                    <td class="cell-cars">{{ activity.team_cars if activity.team_cars else '' }}</td>
+                    {# --- خلية حالة التنفيذ محذوفة --- #}
+                    <td class="cell-links"> {# استخدام div لتجميع الروابط #}
+                        <div>
+                             {# استخدام فلتر url_decode لعرض اسم الرابط بشكل مقروء #}
+                             {% if activity.link1 %}<a href="{{ activity.link1 }}" target="_blank">{{ activity.link1 | url_decode | truncate(35, True) }}</a>{% endif %}
+                             {% if activity.link2 %}<a href="{{ activity.link2 }}" target="_blank">{{ activity.link2 | url_decode | truncate(35, True) }}</a>{% endif %}
+                             {% if activity.link3 %}<a href="{{ activity.link3 }}" target="_blank">{{ activity.link3 | url_decode | truncate(35, True) }}</a>{% endif %}
+                        </div>
                     </td>
-                    <td class="links">
-                        {% if activity.link1 %}<a href="{{ activity.link1 }}" target="_blank">{{ activity.link1[:30] }}...</a>{% endif %}
-                        {% if activity.link2 %}<a href="{{ activity.link2 }}" target="_blank">{{ activity.link2[:30] }}...</a>{% endif %}
-                        {% if activity.link3 %}<a href="{{ activity.link3 }}" target="_blank">{{ activity.link3[:30] }}...</a>{% endif %}
+                    <td class="cell-last-update">
+                        {# استخدام span لتنسيق أفضل #}
+                        <span class="update-time">{{ activity.last_updated_on.strftime('%Y-%m-%d %H:%M') if activity.last_updated_on else '-' }}</span><br>
+                        <span class="update-editor">{{ UI.updated_by }}: {{ activity.last_updated_by.name if activity.last_updated_by else '-' }}</span>
                     </td>
-                    <td class="last-update">
-                        {{ activity.last_updated_on.strftime('%Y-%m-%d %H:%M') if activity.last_updated_on else '-' }}<br>
-                        {{ UI.updated_by }}: {{ activity.last_updated_by.name if activity.last_updated_by else '-' }}
-                    </td>
-                    {# --- *** إضافة خلية بيانات المقترحات *** --- #}
-                    <td class="admin-suggestions">
+                    <td class="cell-admin-suggestions">
                          {{ activity.admin_suggestions | replace('\n', '<br>') | safe if activity.admin_suggestions else '' }}
                     </td>
-                    {# ----------------------------------------- #}
                 </tr>
                 {% endfor %}
             {% else %}
-                 {# --- *** تعديل colspan ليشمل العمود الجديد *** --- #}
+                 {# --- تعديل colspan ليصبح 14 (عدد الأعمدة الحالي) --- #}
                 <tr>
-                    <td colspan="15" style="text-align: center; padding: 15px;">{{ UI.no_activities_msg }} {{ month_name }} {{ current_year }}.</td>
+                    <td colspan="14" class="no-activities-cell">{{ UI.no_activities_msg }} {{ month_name }} {{ current_year }}.</td>
                 </tr>
-                 {# --------------------------------------------- #}
             {% endif %}
         </tbody>
     </table>
+
+    {# يمكن إضافة تذييل للصفحة هنا إذا لزم الأمر #}
+    {# <div class="footer">معلومات إضافية أو رقم الصفحة</div> #}
 </body>
 </html>
-

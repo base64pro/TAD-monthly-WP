@@ -3,69 +3,143 @@
 {# --- Block: عنوان الصفحة --- #}
 {% block title %}{{ title }}{% endblock %}
 
-{# --- Block: أنماط CSS خاصة بهذه الصفحة (إذا وجدت) --- #}
+{# --- Block: أنماط CSS خاصة بهذه الصفحة --- #}
 {% block styles %}
+{{ super() }} {# للحفاظ على الأنماط من base.html #}
 <style>
-    /* أنماط خاصة بصفحة الإعدادات */
-    .card { margin-bottom: 1.5rem; }
-    .card-header { font-weight: bold; }
-    .list-group-item { padding: 0.75rem 1rem; } /* تعديل padding */
-    .list-group-item .btn-group { margin-left: auto; } /* دفع الأزرار لليمين */
-    html[dir="rtl"] .list-group-item .btn-group { margin-left: 0; margin-right: auto; } /* دفع الأزرار لليسار في RTL */
-    .btn-group .btn { padding: 0.25rem 0.5rem; font-size: 0.8em; } /* تصغير الأزرار قليلاً */
-    .btn-group .btn i { margin-right: 3px; } html[dir="rtl"] .btn-group .btn i { margin-right: 0; margin-left: 3px; }
+    /* أنماط خاصة بصفحة الإعدادات المحسنة */
+    .settings-container {
+        max-width: 960px; /* تحديد عرض أقصى للمحتوى */
+        margin: 30px auto; /* زيادة الهامش العلوي والسفلي */
+    }
+    .settings-title {
+        text-align: center;
+        margin-bottom: 2rem; /* زيادة المسافة السفلية */
+        font-size: 1.8em;
+        font-weight: 700;
+        color: var(--dark-color);
+    }
+    .card.settings-card { /* كلاس إضافي لتمييز كروت الإعدادات */
+        margin-bottom: 2rem;
+        border: none; /* إزالة الحدود الافتراضية */
+        border-radius: var(--border-radius); /* استخدام المتغير */
+        box-shadow: var(--box-shadow); /* استخدام المتغير */
+        overflow: hidden; /* لمنع تجاوز المحتوى للزوايا */
+    }
+    .card-header.settings-header {
+        font-weight: 700; /* خط أثقل */
+        font-size: 1.1em;
+        padding: 1rem 1.25rem; /* تعديل الحشو */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0,0,0,.08); /* خط فاصل أفتح */
+    }
+    /* ألوان خلفية مختلفة للهيدر */
+    .card-header.editors-header { background-color: var(--primary-color); color: white; }
+    .card-header.projects-header { background-color: var(--success-color); color: white; }
+
+    .card-body.settings-body {
+        padding: 0; /* إزالة الحشو للسماح للقائمة بملء المساحة */
+    }
+    .list-group-flush .list-group-item {
+        padding: 0.8rem 1.25rem; /* تعديل الحشو */
+        border-top: 1px solid var(--border-color); /* خط فاصل بين العناصر */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.15s ease-in-out;
+    }
+    .list-group-flush .list-group-item:first-child { border-top: none; }
+    .list-group-flush .list-group-item:hover { background-color: #f8f9fa; }
+
+    .list-group-item .item-name { /* تنسيق اسم المحرر/المشروع */
+        color: var(--text-color);
+        font-weight: 500; /* خط متوسط */
+    }
+    .list-group-item .btn-group {
+        margin-inline-start: auto; /* دفع الأزرار للجهة المقابلة */
+        opacity: 0; /* إخفاء الأزرار افتراضياً */
+        transition: opacity 0.2s ease-in-out;
+    }
+    .list-group-item:hover .btn-group {
+        opacity: 1; /* إظهار الأزرار عند المرور على العنصر */
+    }
+    .btn-group .btn {
+        padding: 0.3rem 0.6rem; /* تعديل حجم الأزرار */
+        font-size: 0.85em;
+    }
+    .btn-group .btn i { margin-right: 0; /* إزالة الهامش الافتراضي للأيقونة */ }
+
+    .no-items-message {
+        text-align: center;
+        color: var(--secondary-color);
+        padding: 1.5rem;
+        font-style: italic;
+    }
+
+    .back-button-container {
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    /* --- تعديلات للموبايل --- */
+    @media (max-width: 768px) {
+        .settings-container { margin: 20px auto; }
+        .settings-title { font-size: 1.5em; margin-bottom: 1.5rem; }
+        .list-group-item .btn-group { opacity: 1; /* إظهار الأزرار دائماً على الموبايل */ }
+        .list-group-item { flex-direction: column; align-items: flex-start; }
+        .list-group-item .item-name { margin-bottom: 0.5rem; }
+        .list-group-item .btn-group { margin-inline-start: 0; align-self: flex-end; }
+    }
 </style>
 {% endblock %}
 
 
 {# --- Block: محتوى الصفحة الرئيسي --- #}
 {% block content %}
-<div class="container mt-4 mb-5" style="max-width: 960px;"> {# Added max-width and bottom margin #}
-    <h2 class="mb-4 text-center">{{ UI.get('admin_settings_title') }}</h2> {# Centered title #}
+<div class="container settings-container">
+    <h2 class="settings-title">{{ UI.get('admin_settings_title') }}</h2>
 
-    {# --- Flash Messages (تأتي من base.html إذا تم نقلها هناك) --- #}
-    {# إذا لم يتم نقلها، يمكن وضعها هنا #}
+    {# --- Flash Messages --- #}
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            {% for category, message in messages %}
-            <div class="alert alert-{{ 'warning' if category == 'warning' else 'danger' if category == 'danger' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                {# زر الإغلاق قد يحتاج لـ Bootstrap JS ليعمل #}
-                {# <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> #}
-            </div>
-            {% endfor %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
         {% endif %}
     {% endwith %}
 
-    <div class="row g-4"> {# Added gutter spacing between columns #}
+    <div class="row g-4"> {# استخدام نظام الشبكة مع تباعد (gutter) #}
         {# --- قسم إدارة المحررين --- #}
         <div class="col-md-6">
-            <div class="card shadow-sm"> {# Added subtle shadow #}
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center"> {# Styled header #}
+            <div class="card settings-card">
+                <div class="card-header settings-header editors-header">
                     <h5 class="mb-0">{{ UI.get('manage_editors') }}</h5>
-                    <button type="button" class="btn btn-light btn-sm py-1" onclick="openModal('addEditorModal')"> {# Use onclick #}
-                        <i class="fas fa-plus me-1"></i> {{ UI.get('add_editor_btn') }}
+                    <button type="button" class="btn btn-light btn-sm" onclick="openModal('addEditorModal')">
+                        <i class="fas fa-plus"></i> {{ UI.get('add_editor_btn') }}
                     </button>
                 </div>
-                <div class="card-body p-0"> {# Removed padding for list group #}
+                <div class="card-body settings-body">
                     {% if editors %}
                         <ul class="list-group list-group-flush">
                             {% for editor in editors %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span class="editor-name">{{ editor.name }}</span>
-                                <div class="btn-group btn-group-sm" role="group"> {# Grouped buttons #}
+                            <li class="list-group-item">
+                                <span class="item-name">{{ editor.name }}</span>
+                                <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-warning edit-editor-btn"
-                                            onclick="openEditEditorModal(this)" {# Use onclick #}
+                                            onclick="openEditEditorModal(this)"
                                             data-editor-id="{{ editor.id }}"
-                                            data-get-url="{{ url_for('get_editor_data', editor_id=editor.id, lang=lang) }}"> {# URL to fetch data #}
-                                        <i class="fas fa-edit"></i> {# Edit icon #}
+                                            data-get-url="{{ url_for('get_editor_data', editor_id=editor.id, lang=lang) }}">
+                                        <i class="fas fa-edit"></i>
                                     </button>
-                                    {# Delete Form - Use POST #}
-                                    {# *** CORRECTED LINE: Use get_text() instead of UI.get() *** #}
+                                    {# --- تصحيح استخدام get_text --- #}
                                     <form action="{{ url_for('delete_editor', editor_id=editor.id, lang=lang) }}" method="POST" class="d-inline"
                                           onsubmit="return confirm({{ get_text('editor_delete_confirm', name=editor.name)|tojson }})">
                                         <button type="submit" class="btn btn-outline-danger">
-                                            <i class="fas fa-trash-alt"></i> {# Delete icon #}
+                                            <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -73,7 +147,7 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p class="text-center text-muted p-3">{{ UI.get('fetch_editors_error') or 'No editors found.' }}</p>
+                        <p class="no-items-message">{{ UI.get('fetch_editors_error') or 'No editors found.' }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -81,32 +155,31 @@
 
         {# --- قسم إدارة المشاريع --- #}
         <div class="col-md-6">
-            <div class="card shadow-sm"> {# Added subtle shadow #}
-                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center"> {# Styled header #}
+            <div class="card settings-card">
+                <div class="card-header settings-header projects-header">
                     <h5 class="mb-0">{{ UI.get('manage_projects') }}</h5>
-                     <button type="button" class="btn btn-light btn-sm py-1" onclick="openModal('addProjectModal')"> {# Use onclick #}
-                        <i class="fas fa-plus me-1"></i> {{ UI.get('add_project_btn') }}
+                     <button type="button" class="btn btn-light btn-sm" onclick="openModal('addProjectModal')">
+                        <i class="fas fa-plus"></i> {{ UI.get('add_project_btn') }}
                     </button>
                 </div>
-                 <div class="card-body p-0"> {# Removed padding for list group #}
+                 <div class="card-body settings-body">
                     {% if projects %}
                         <ul class="list-group list-group-flush">
                             {% for project in projects %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span class="project-name">{{ project.name }}</span>
-                                <div class="btn-group btn-group-sm" role="group"> {# Grouped buttons #}
+                            <li class="list-group-item">
+                                <span class="item-name">{{ project.name }}</span>
+                                <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-warning edit-project-btn"
-                                            onclick="openEditProjectModal(this)" {# Use onclick #}
+                                            onclick="openEditProjectModal(this)"
                                             data-project-id="{{ project.id }}"
-                                            data-get-url="{{ url_for('get_project_data', project_id=project.id, lang=lang) }}"> {# URL to fetch data #}
-                                         <i class="fas fa-edit"></i> {# Edit icon #}
+                                            data-get-url="{{ url_for('get_project_data', project_id=project.id, lang=lang) }}">
+                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    {# Delete Form - Use POST #}
-                                     {# *** CORRECTED LINE: Use get_text() instead of UI.get() *** #}
+                                    {# --- تصحيح استخدام get_text --- #}
                                     <form action="{{ url_for('delete_project', project_id=project.id, lang=lang) }}" method="POST" class="d-inline"
                                           onsubmit="return confirm({{ get_text('project_delete_confirm', name=project.name)|tojson }})">
                                         <button type="submit" class="btn btn-outline-danger">
-                                             <i class="fas fa-trash-alt"></i> {# Delete icon #}
+                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -114,7 +187,7 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p class="text-center text-muted p-3">{{ UI.get('fetch_projects_error') or 'No projects found.' }}</p>
+                        <p class="no-items-message">{{ UI.get('fetch_projects_error') or 'No projects found.' }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -122,9 +195,9 @@
     </div>
 
     {# --- زر العودة للخطة الشهرية --- #}
-    <div class="mt-4 text-center">
+    <div class="back-button-container">
          <a href="{{ url_for('monthly_plan', lang=lang) }}" class="btn btn-secondary">
-             <i class="fas fa-arrow-left me-1"></i> {{ UI.get('monthly_plan') }} {# Back icon #}
+             <i class="fas fa-arrow-left"></i> {{ UI.get('monthly_plan') }}
          </a>
     </div>
 
@@ -133,23 +206,23 @@
 {#--- النوافذ المنبثقة (Modals) ---#}
 
 {# Add Editor Modal #}
-<div class="modal fade" id="addEditorModal" tabindex="-1" aria-labelledby="addEditorModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+<div class="modal" id="addEditorModal" tabindex="-1" aria-labelledby="addEditorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form action="{{ url_for('add_editor', lang=lang) }}" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addEditorModalLabel">{{ UI.get('modal_title_add_editor') }}</h5>
-                    <button type="button" class="close-btn" onclick="closeModal('addEditorModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                    <button type="button" class="close-btn" onclick="closeModal('addEditorModal')" aria-label="Close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3 form-group"> {# Added form-group #}
+                    <div class="form-group">
                         <label for="add-editor-name" class="form-label">{{ UI.get('label_editor_name') }}</label>
                         <input type="text" class="form-control" id="add-editor-name" name="editor_name" required>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeModal('addEditorModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
-                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addEditorModal')">{{ UI.get('cancel_btn') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ UI.get('save_changes_btn') }}</button>
                 </div>
             </form>
         </div>
@@ -157,29 +230,29 @@
 </div>
 
 {# Edit Editor Modal #}
-<div class="modal fade" id="editEditorModal" tabindex="-1" aria-labelledby="editEditorModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+<div class="modal" id="editEditorModal" tabindex="-1" aria-labelledby="editEditorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form id="editEditorForm" action="" method="POST"> {# Action set dynamically by JS #}
                 <div class="modal-header">
                     <h5 class="modal-title" id="editEditorModalLabel">{{ UI.get('modal_title_edit_editor') }}</h5>
-                     <button type="button" class="close-btn" onclick="closeModal('editEditorModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                     <button type="button" class="close-btn" onclick="closeModal('editEditorModal')" aria-label="Close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3 form-group"> {# Added form-group #}
+                    <div class="form-group">
                         <label for="edit-editor-name" class="form-label">{{ UI.get('label_editor_name') }}</label>
                         <input type="text" class="form-control" id="edit-editor-name" name="editor_name" required>
                     </div>
                      {# Optional: Add loading indicator #}
                      <div id="editEditorLoading" class="text-center d-none">
                         <div class="spinner-border spinner-border-sm" role="status">
-                            <span class="visually-hidden">Loading...</span>
+                            <span class="visually-hidden">Loading...</span> {# نص للمساعدة على الوصول #}
                         </div>
-                    </div>
+                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeModal('editEditorModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
-                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editEditorModal')">{{ UI.get('cancel_btn') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ UI.get('save_changes_btn') }}</button>
                 </div>
             </form>
         </div>
@@ -187,23 +260,23 @@
 </div>
 
 {# Add Project Modal #}
-<div class="modal fade" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
-     <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+<div class="modal" id="addProjectModal" tabindex="-1" aria-labelledby="addProjectModalLabel" aria-hidden="true">
+     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form action="{{ url_for('add_project', lang=lang) }}" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addProjectModalLabel">{{ UI.get('modal_title_add_project') }}</h5>
-                    <button type="button" class="close-btn" onclick="closeModal('addProjectModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                    <button type="button" class="close-btn" onclick="closeModal('addProjectModal')" aria-label="Close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3 form-group"> {# Added form-group #}
+                    <div class="form-group">
                         <label for="add-project-name" class="form-label">{{ UI.get('label_project_name') }}</label>
                         <input type="text" class="form-control" id="add-project-name" name="project_name" required>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeModal('addProjectModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
-                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addProjectModal')">{{ UI.get('cancel_btn') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ UI.get('save_changes_btn') }}</button>
                 </div>
             </form>
         </div>
@@ -211,16 +284,16 @@
 </div>
 
 {# Edit Project Modal #}
-<div class="modal fade" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
-     <div class="modal-dialog modal-dialog-centered"> {# Centered modal #}
+<div class="modal" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
+     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form id="editProjectForm" action="" method="POST"> {# Action set dynamically by JS #}
                 <div class="modal-header">
                     <h5 class="modal-title" id="editProjectModalLabel">{{ UI.get('modal_title_edit_project') }}</h5>
-                    <button type="button" class="close-btn" onclick="closeModal('editProjectModal')" aria-label="Close">&times;</button> {# Use onclick #}
+                    <button type="button" class="close-btn" onclick="closeModal('editProjectModal')" aria-label="Close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3 form-group"> {# Added form-group #}
+                    <div class="form-group">
                         <label for="edit-project-name" class="form-label">{{ UI.get('label_project_name') }}</label>
                         <input type="text" class="form-control" id="edit-project-name" name="project_name" required>
                     </div>
@@ -229,11 +302,11 @@
                         <div class="spinner-border spinner-border-sm" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                    </div>
+                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeModal('editProjectModal')">{{ UI.get('cancel_btn') }}</button> {# Use onclick #}
-                    <button type="submit" class="btn-primary">{{ UI.get('save_changes_btn') }}</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editProjectModal')">{{ UI.get('cancel_btn') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ UI.get('save_changes_btn') }}</button>
                 </div>
             </form>
         </div>
@@ -244,53 +317,40 @@
 
 {# --- Block: سكربتات JavaScript الخاصة بهذه الصفحة --- #}
 {% block scripts %}
+{{ super() }} {# للحفاظ على السكربتات من base.html #}
 {# --- تضمين قاموس النصوص كـ JSON (إذا لم يكن في base.html) --- #}
 {# <script id="ui-texts" type="application/json">{{ UI | tojson | safe }}</script> #}
 <script>
-    // --- دوال فتح/إغلاق النوافذ المنبثقة (يمكن نقلها لـ base.html إذا كانت مستخدمة في index.html أيضاً) ---
+    // --- دوال فتح/إغلاق النوافذ المنبثقة (تأتي من base.html أو يمكن تكرارها هنا) ---
     function openModal(modalId) {
         const modal = document.getElementById(modalId);
-        if (modal) {
-            // إذا كنت تستخدم Bootstrap JS، استخدم الطريقة الموصى بها
-            // const bsModal = new bootstrap.Modal(modal);
-            // bsModal.show();
-            // إذا لم تكن تستخدم Bootstrap JS، استخدم الطريقة اليدوية
-            modal.style.display = 'block';
-            modal.classList.add('show'); // قد تحتاج لهذه الفئة إذا كانت أنماطك تعتمد عليها
-        } else {
-            console.error(`Modal with ID ${modalId} not found.`);
-        }
+        if (modal) modal.style.display = 'block';
+        else console.error(`Modal with ID ${modalId} not found.`);
     }
 
     function closeModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
-            // إذا كنت تستخدم Bootstrap JS
-            // const bsModal = bootstrap.Modal.getInstance(modal);
-            // if (bsModal) bsModal.hide();
-            // إذا لم تكن تستخدم Bootstrap JS
              modal.style.display = 'none';
-             modal.classList.remove('show');
-             // إعادة تعيين النموذج داخل المودال عند الإغلاق
              const form = modal.querySelector('form');
-             if (form) {
-                 form.reset();
-             }
+             if (form) form.reset();
         }
     }
 
-     // إغلاق المودال عند النقر خارج محتواه (إذا لم تستخدم Bootstrap JS)
+     // إغلاق المودال عند النقر خارج محتواه
      window.addEventListener('click', function(event) {
         const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            if (event.target == modal) {
-                closeModal(modal.id);
-            }
-        });
+        modals.forEach(modal => { if (event.target == modal) closeModal(modal.id); });
+     });
+     // إغلاق المودال عند الضغط على زر Escape
+     document.addEventListener('keydown', function(event) {
+        if (event.key === "Escape") {
+            const openModalElement = document.querySelector('.modal[style*="display: block"]');
+            if (openModalElement) closeModal(openModalElement.id);
+        }
      });
 
-
-    // --- دوال خاصة بمودالات تعديل المحرر والمشروع ---
+    // --- دوال خاصة بمودالات تعديل المحرر والمشروع (محسنة) ---
     async function openEditEditorModal(buttonElement) {
         const modal = document.getElementById('editEditorModal');
         if (!modal) return;
@@ -302,14 +362,20 @@
         const editorId = buttonElement.dataset.editorId;
         const getDataUrl = buttonElement.dataset.getUrl; // Get URL from button
 
-        // Set form action URL immediately using template literals for clarity
+        if (!editorId || !getDataUrl) {
+            console.error("Missing data attributes on edit button.");
+            return;
+        }
+
+        // Set form action URL
         const actionUrl = `{{ url_for('edit_editor', editor_id=0, lang=lang) }}`.replace('/0', `/${editorId}`);
         form.action = actionUrl;
 
         // Reset form state and show loading
         editorNameInput.value = ''; // Clear previous value
         if(loadingIndicator) loadingIndicator.classList.remove('d-none'); // Show loading
-        modalTitle.textContent = `{{ UI.get('modal_title_edit_editor') }} #${editorId}`; // Update title
+        // استخدام get_text للحصول على النص المترجم
+        modalTitle.textContent = `{{ get_text('modal_title_edit_editor') }} #${editorId}`;
 
         // Fetch editor data
         try {
@@ -325,7 +391,8 @@
             } else { console.error("Editor name not found in response:", data); }
         } catch (error) {
             console.error('Error fetching editor data:', error);
-            editorNameInput.placeholder = "{{ UI.get('get_editor_error') }}"; // Use placeholder for error
+            // استخدام get_text للحصول على نص الخطأ
+            editorNameInput.placeholder = "{{ get_text('get_editor_error') }}";
         } finally {
             if(loadingIndicator) loadingIndicator.classList.add('d-none'); // Hide loading
             openModal('editEditorModal'); // Open modal after attempting fetch
@@ -343,14 +410,20 @@
         const projectId = buttonElement.dataset.projectId;
         const getDataUrl = buttonElement.dataset.getUrl;
 
-        // Set form action URL using template literals
+        if (!projectId || !getDataUrl) {
+            console.error("Missing data attributes on edit button.");
+            return;
+        }
+
+        // Set form action URL
         const actionUrl = `{{ url_for('edit_project', project_id=0, lang=lang) }}`.replace('/0', `/${projectId}`);
         form.action = actionUrl;
 
         // Reset form state and show loading
         projectNameInput.value = '';
         if(loadingIndicator) loadingIndicator.classList.remove('d-none');
-        modalTitle.textContent = `{{ UI.get('modal_title_edit_project') }} #${projectId}`; // Use template literal
+        // استخدام get_text
+        modalTitle.textContent = `{{ get_text('modal_title_edit_project') }} #${projectId}`;
 
         // Fetch project data
         try {
@@ -366,7 +439,8 @@
             } else { console.error("Project name not found in response:", data); }
         } catch (error) {
             console.error('Error fetching project data:', error);
-            projectNameInput.placeholder = "{{ UI.get('get_project_error') }}"; // Use placeholder for error
+            // استخدام get_text
+            projectNameInput.placeholder = "{{ get_text('get_project_error') }}";
         } finally {
              if(loadingIndicator) loadingIndicator.classList.add('d-none');
              openModal('editProjectModal'); // Open modal after attempting fetch
