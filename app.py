@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # --- ملف: app.py ---
-# النسخة المحدثة مع إصلاح حقل الحالة وإيقاف WeasyPrint وإزالة رموز الدخول الافتراضية
+# النسخة المحدثة مع إصلاح حقل الحالة وإعادة تفعيل WeasyPrint وإزالة رموز الدخول الافتراضية
 # تم تمكين app.run() للتشغيل المحلي
 # تم تعديل نص UI لـ updated_by
 # تم إضافة تسجيل أخطاء مفصل لجلب المحررين والمشاريع
@@ -24,9 +24,15 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError # <-- استيراد 
 from extensions import db
 from models import Activity, Project, Editor
 
-# --- تعطيل WeasyPrint ---
-WEASYPRINT_AVAILABLE = False
-print("--- INFO: WeasyPrint is intentionally disabled.")
+# --- *** إعادة تفعيل WeasyPrint *** ---
+try:
+    from weasyprint import HTML, CSS
+    WEASYPRINT_AVAILABLE = True
+    print("--- INFO: WeasyPrint found and enabled.")
+except ImportError:
+    WEASYPRINT_AVAILABLE = False
+    print("--- WARNING: Weasyprint not found. PDF export will be disabled.")
+# --- *** نهاية إعادة التفعيل *** ---
 
 # تحميل المتغيرات البيئية
 load_dotenv()
@@ -44,7 +50,7 @@ DAYS_OF_WEEK = {
 }
 
 # --- قاموس النصوص (UI_TEXTS) ---
-# (يبقى كما هو من التحديث السابق)
+# تم إزالة pdf_export_disabled وإعادة weasyprint_not_found
 UI_TEXTS = {
     'ar': {
         'monthly_plan': "خطة العمل الشهرية", 'org_name': "جمعية التحرير للتنمية",
@@ -97,7 +103,7 @@ UI_TEXTS = {
         'admin_required_warning': "يجب الدخول كـ Admin للوصول لهذه الصفحة.",
         'export_pdf_btn': "تصدير PDF", 'pdf_export_error': "حدث خطأ أثناء تصدير PDF.",
         'weasyprint_not_found': "مكتبة WeasyPrint غير موجودة. لا يمكن تصدير PDF.",
-        'pdf_export_disabled': "تصدير PDF معطل حالياً.",
+        # 'pdf_export_disabled': "تصدير PDF معطل حالياً.", # <-- تم الحذف
         'admin_settings_title': "إعدادات النظام", 'manage_editors': "إدارة المحررين",
         'manage_projects': "إدارة المشاريع", 'add_editor_btn': "إضافة محرر جديد +",
         'add_project_btn': "إضافة مشروع جديد +", 'label_editor_name': "اسم المحرر:",
@@ -119,7 +125,7 @@ UI_TEXTS = {
         'get_editor_error': 'خطأ في جلب بيانات المحرر للتعديل.', 'get_project_error': 'خطأ في جلب بيانات المشروع للتعديل.',
     },
     'en': {
-        # ... (English texts) ...
+        # ... (English texts - adjust weasyprint_not_found if needed) ...
         'monthly_plan': "Monthly Work Plan", 'org_name': "Al-Tahrir Association for Development",
         'plan_for': "Work Plan for", 'prev_month': "Previous Month", 'next_month': "Next Month",
         'cancel_btn': "Cancel", 'save_changes_btn': "Save Changes",
@@ -170,7 +176,7 @@ UI_TEXTS = {
         'admin_required_warning': "You must be logged in as an Admin to access this page.",
         'export_pdf_btn': "Export PDF", 'pdf_export_error': "Error exporting PDF.",
         'weasyprint_not_found': "WeasyPrint library not found. PDF export disabled.",
-        'pdf_export_disabled': "Exporting to PDF is currently disabled.",
+        # 'pdf_export_disabled': "Exporting to PDF is currently disabled.", # <-- Removed
         'admin_settings_title': "System Settings", 'manage_editors': "Manage Editors",
         'manage_projects': "Manage Projects", 'add_editor_btn': "Add New Editor +",
         'add_project_btn': "Add New Project +", 'label_editor_name': "Editor Name:",
@@ -317,7 +323,7 @@ def inject_language_vars():
         lang=lang,
         lang_dir=LANGUAGES.get(lang, {}).get('dir', 'rtl'),
         UI=UI_TEXTS.get(lang, UI_TEXTS[DEFAULT_LANGUAGE]),
-        WEASYPRINT_AVAILABLE=WEASYPRINT_AVAILABLE,
+        WEASYPRINT_AVAILABLE=WEASYPRINT_AVAILABLE, # <-- تمرير الحالة الصحيحة الآن
         is_admin=is_admin,
         is_editor=is_editor,
         selected_editor_id=editor_id,
@@ -419,21 +425,19 @@ def monthly_plan(lang=None, year=None, month=None):
 
     activities, editors, projects, upcoming_activities = [], [], [], []
     try:
-        # جلب الأنشطة
         activities = Activity.query.options(
             db.joinedload(Activity.project), db.joinedload(Activity.last_updated_by)
         ).filter(
             Activity.activity_date >= start_date, Activity.activity_date <= end_date
         ).order_by(Activity.activity_date, Activity.id).all()
 
-        # --- *** تعديل: جلب المحررين والمشاريع مع تسجيل أخطاء مفصل *** ---
         try:
             editors = Editor.query.order_by(Editor.name).all()
         except SQLAlchemyError as e_editors:
             print(f"--- DATABASE ERROR fetching editors: {e_editors}")
-            traceback.print_exc() # طباعة تفاصيل الخطأ في السجل
-            editors = [] # تعيين قائمة فارغة لتجنب خطأ في القالب
-            flash(get_text('fetch_error'), "danger") # إظهار رسالة خطأ عامة للمستخدم
+            traceback.print_exc()
+            editors = []
+            flash(get_text('fetch_error'), "danger")
         except Exception as e_general_editors:
             print(f"--- UNEXPECTED ERROR fetching editors: {e_general_editors}")
             traceback.print_exc()
@@ -452,9 +456,7 @@ def monthly_plan(lang=None, year=None, month=None):
             traceback.print_exc()
             projects = []
             flash(get_text('fetch_error'), "danger")
-        # --- *** نهاية التعديل *** ---
 
-        # جلب الأنشطة القادمة
         today = date.today()
         three_days_later = today + timedelta(days=2)
         upcoming_activities = Activity.query.options(
@@ -464,11 +466,11 @@ def monthly_plan(lang=None, year=None, month=None):
             Activity.status != 2
         ).order_by(Activity.activity_date).all()
 
-    except SQLAlchemyError as e_activities: # التقاط أخطاء SQLAlchemy للأنشطة أيضاً
+    except SQLAlchemyError as e_activities:
         print(f"--- DATABASE ERROR fetching activities: {e_activities}")
         traceback.print_exc()
         flash(get_text('fetch_error'), "danger")
-    except Exception as e_general: # التقاط أي أخطاء عامة أخرى
+    except Exception as e_general:
         print(f"--- UNEXPECTED ERROR in monthly_plan data fetching: {e_general}")
         traceback.print_exc()
         flash(get_text('fetch_error'), "danger")
@@ -888,13 +890,80 @@ def get_project_data(project_id):
         return jsonify({'error': get_text('get_project_error')}), 500
 
 
-# --- مسار تصدير PDF (معطل) ---
+# --- مسار تصدير PDF (مُفعّل الآن) ---
 @app.route('/export_pdf/<int:year>/<int:month>')
 def export_pdf(year, month):
     lang = get_locale()
-    flash(get_text('pdf_export_disabled'), 'warning')
-    print(f"--- INFO: PDF export requested for {year}-{month} but is disabled.")
-    return redirect(url_for('monthly_plan', year=year, month=month, lang=lang))
+    if not WEASYPRINT_AVAILABLE:
+        flash(get_text('weasyprint_not_found'), 'danger')
+        return redirect(url_for('monthly_plan', year=year, month=month, lang=lang))
+
+    try:
+        start_date = date(year, month, 1); last_day = calendar.monthrange(year, month)[1]; end_date = date(year, month, last_day)
+        activities = Activity.query.options(
+            db.joinedload(Activity.project), db.joinedload(Activity.last_updated_by)
+        ).filter(
+            Activity.activity_date >= start_date, Activity.activity_date <= end_date
+        ).order_by(Activity.activity_date, Activity.id).all()
+
+        month_name = MONTHS[lang][month - 1] if 0 <= month - 1 < 12 else f"Month {month}"
+        pdf_title = f"{get_text('plan_for')} {month_name} {year} - {get_text('org_name')}"
+        template_path = os.path.join(app.template_folder, 'pdf_template.html')
+        if not os.path.exists(template_path):
+             print(f"--- ERROR: PDF template not found at {template_path}"); flash(get_text('pdf_export_error') + " (Template missing)", 'danger')
+             return redirect(url_for('monthly_plan', year=year, month=month, lang=lang))
+
+        html_content = render_template(
+            'pdf_template.html', title=pdf_title, activities=activities, lang=lang,
+            lang_dir=LANGUAGES.get(lang, {}).get('dir', 'rtl'),
+            UI=UI_TEXTS.get(lang, UI_TEXTS[DEFAULT_LANGUAGE]),
+            month_name=month_name, current_year=year
+        )
+
+        current_direction = LANGUAGES.get(lang, {}).get('dir', 'rtl')
+        current_text_align = 'right' if current_direction == 'rtl' else 'left'
+        # --- CSS الخاص بـ PDF ---
+        css_string = f"""
+            @page {{ size: A4 landscape; margin: 0.8cm; @bottom-center {{ content: "Page " counter(page) " of " counter(pages); font-size: 8pt; color: #666; }} }}
+            body {{ font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 7.5pt; line-height: 1.3; direction: {current_direction}; }}
+            .header {{ text-align: center; margin-bottom: 8px; padding: 5px; background-color: #3f51b5; color: white; border-radius: 3px; }}
+            .title {{ font-size: 11pt; font-weight: bold; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 6px; border: 1px solid #999; }}
+            th, td {{ border: 1px solid #ccc; padding: 2px 4px; text-align: {current_text_align}; vertical-align: top; word-wrap: break-word; hyphens: auto; }}
+            th {{ background-color: #e0e0e0; color: #333; font-weight: bold; text-align: center; vertical-align: middle; white-space: nowrap; font-size: 7pt;}}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            td.cell-id, td.cell-date {{ text-align: center; vertical-align: middle; }}
+            td.cell-status {{ text-align: center; vertical-align: middle; font-weight: bold; }}
+            tr.status-0 td.cell-status {{ background-color: #ffebee !important; color: #b71c1c !important; }}
+            tr.status-1 td.cell-status {{ background-color: #e8f5e9 !important; color: #1b5e20 !important; }}
+            tr.status-2 td.cell-status {{ background-color: #e3f2fd !important; color: #0d47a1 !important; }}
+            .cell-last-update span {{ display: block; font-size: 0.85em; color: #666; white-space: nowrap; }}
+            .cell-last-update .update-time {{ font-weight: normal; }}
+            .cell-last-update .update-editor {{ font-style: italic; }}
+            .cell-links a {{ display: block; margin-bottom: 1px; color: #007bff; text-decoration: none; font-size: 0.8em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }}
+            .cell-links a:hover {{ text-decoration: underline; }}
+            td.cell-admin-suggestions {{ font-size: 0.9em; color: #444; font-style: italic; background-color: #fff8e1; }}
+            tr {{ page-break-inside: avoid; }} table {{ page-break-inside: auto; }}
+        """
+
+        print("--- PDF EXPORT: Generating PDF...")
+        html = HTML(string=html_content, base_url=basedir)
+        pdf_file = html.write_pdf(stylesheets=[CSS(string=css_string)])
+        print("--- PDF EXPORT: PDF generated successfully.")
+
+        response = make_response(pdf_file)
+        response.headers['Content-Type'] = 'application/pdf'
+        raw_filename = f"Plan_{month_name}_{year}.pdf"
+        url_encoded_filename = quote(raw_filename)
+        response.headers['Content-Disposition'] = f"inline; filename*=UTF-8''{url_encoded_filename}"
+        return response
+
+    except ImportError:
+        print(f"--- ERROR: WeasyPrint components not loaded correctly during PDF generation."); flash(get_text('weasyprint_not_found'), 'danger')
+        return redirect(url_for('monthly_plan', year=year, month=month, lang=lang))
+    except Exception as e:
+        print(f"--- ERROR exporting PDF for {year}-{month}: {e}"); traceback.print_exc(); flash(get_text('pdf_export_error'), 'danger')
+        return redirect(url_for('monthly_plan', year=year, month=month, lang=lang))
 
 # --- تشغيل التطبيق ---
 if __name__ == '__main__':
@@ -908,6 +977,8 @@ if __name__ == '__main__':
     except ImportError: missing_packages.append('python-dateutil')
     try: import dotenv
     except ImportError: missing_packages.append('python-dotenv')
+    # --- التحقق من WeasyPrint عند بدء التشغيل ---
+    if not WEASYPRINT_AVAILABLE: print("--- WARNING: WeasyPrint check at startup: PDF export disabled.")
     if missing_packages: print(f"--- WARNING: Missing optional packages: {', '.join(missing_packages)}. Install them for full functionality (e.g., pip install {' '.join(missing_packages)})")
 
     port = int(os.environ.get('PORT', 5000))

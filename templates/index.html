@@ -42,7 +42,7 @@
     .lang-pdf-group { display: flex; align-items: center; gap: 15px; order: 3; margin-inline-start: auto; }
 
     .nav-button { white-space: nowrap; }
-    .pdf-export-btn.disabled {
+    .pdf-export-btn.disabled { /* يستخدم فقط إذا لم تكن WeasyPrint متاحة */
         background-color: var(--secondary-color);
         border-color: var(--secondary-color);
         cursor: not-allowed;
@@ -108,9 +108,12 @@
         font-size: 0.9em;
         color: #555;
         background-color: #fff8e1 !important;
+        /* إزالة الحد الجانبي بناءً على طلب سابق */
+        /* border-left: 3px solid #ffc107; */
     }
     html[dir="ltr"] .main-table td.admin-suggestions-cell {
         border-left: none;
+        /* border-right: 3px solid #ffc107; */
     }
 
     /* --- تنسيق خلية الروابط --- */
@@ -246,6 +249,9 @@
         .main-table td.actions .btn span { display: none; }
         .main-table td.actions .btn i { margin-inline-end: 0 !important; font-size: 0.9em; }
 
+        /* --- إظهار زر PDF واللغة فقط في سطح المكتب --- */
+        /* (لا نحتاج لإضافتها هنا لأنها ظاهرة بشكل افتراضي) */
+
     } /* --- نهاية أنماط سطح المكتب --- */
 
     /* --- ========================================= --- */
@@ -269,10 +275,10 @@
         .lang-pdf-group .lang-selection {
             display: none !important;
         }
-        /* --- جعل مجموعة اللغة و PDF تحتل مساحة أقل إذا كانت فارغة --- */
         .lang-pdf-group:empty {
-             margin-top: 0; /* إزالة الهامش العلوي إذا كانت فارغة */
-             padding: 0; /* إزالة الحشو إذا كانت فارغة */
+             margin-top: 0;
+             padding: 0;
+             display: none;
         }
 
 
@@ -303,6 +309,7 @@
             border: 1px solid #ccd5db; margin-bottom: 1.2rem; border-radius: var(--border-radius);
             background-color: #ffffff; box-shadow: 0 3px 5px rgba(0, 0, 0, 0.06);
             overflow: hidden; padding: 0; transition: box-shadow 0.2s ease-out;
+            min-width: 350px; /* <--- إضافة الحد الأدنى لعرض الصف (البطاقة) */
         }
          .main-table tr:hover { box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1); }
          .main-table td {
@@ -315,7 +322,7 @@
         .main-table tr td:last-child { border-bottom: none; }
 
         .main-table td .mobile-label {
-            display: flex !important; /* Ensure label is displayed */
+            display: flex !important;
             font-weight: 700; color: var(--secondary-color); background-color: #f8f9fa;
             padding: 0.75rem 0.8rem; flex-basis: 30%; flex-grow: 0; flex-shrink: 0;
             text-align: right; border-left: 1px solid var(--border-color); /* RTL */
@@ -324,7 +331,7 @@
         }
         html[dir="ltr"] .main-table td .mobile-label { text-align: left; border-left: none; border-right: 1px solid var(--border-color); }
         .main-table td .mobile-value {
-            display: flex !important; /* Ensure value is displayed */
+            display: flex !important;
             flex-basis: 70%; flex-grow: 1; padding: 0.75rem 0.8rem;
             word-wrap: break-word; overflow-wrap: break-word; text-align: right; /* RTL */
             box-sizing: border-box; align-items: center; background-color: #fff;
@@ -335,6 +342,7 @@
 
 
         /* الصف العلوي من البطاقة (ID, Date, Project) */
+        /* --- إضافة min-width للخلايا الثلاث الأولى --- */
         .main-table tr td:nth-of-type(1),
         .main-table tr td:nth-of-type(2),
         .main-table tr td:nth-of-type(3) {
@@ -345,7 +353,14 @@
             box-sizing: border-box !important; background-color: #f1f3f5 !important;
             font-weight: bold !important; font-size: 0.9em !important;
             border-left: none !important; border-right: none !important;
+            /* القيم التالية أمثلة، يمكن تعديلها حسب الحاجة */
+            /* min-width: 80px; /* <--- حد أدنى عام للخلايا الثلاث */
         }
+         /* تخصيص الحد الأدنى لكل خلية إذا أردنا */
+        .main-table tr td:nth-of-type(1) { min-width: 35px; } /* حد أدنى للتسلسل */
+        .main-table tr td:nth-of-type(2) { min-width: 80px; } /* حد أدنى للتاريخ */
+        .main-table tr td:nth-of-type(3) { min-width: 90px; } /* حد أدنى للمشروع */
+
         .main-table tr td:nth-of-type(2) { border-left: 1px solid var(--border-color) !important; border-right: 1px solid var(--border-color) !important; }
         html[dir="ltr"] .main-table tr td:nth-of-type(2) { border-left: 1px solid var(--border-color) !important; border-right: 1px solid var(--border-color) !important; }
 
@@ -441,7 +456,11 @@
         .main-table td .mobile-value { flex-basis: 65%; }
         .main-table tr td:nth-of-type(1),
         .main-table tr td:nth-of-type(2),
-        .main-table tr td:nth-of-type(3) { min-height: 40px; font-size: 0.85em; padding: 0.6rem 0.4rem; }
+        .main-table tr td:nth-of-type(3) {
+            min-height: 40px; font-size: 0.85em; padding: 0.6rem 0.4rem;
+            /* يمكن تعديل min-width هنا أيضاً للشاشات الصغيرة جداً إذا لزم الأمر */
+             /* min-width: 30px; */ /* مثال للتسلسل */
+        }
     }
 </style>
 {% endblock %}
@@ -521,10 +540,11 @@
                     {% if not loop.last %} | {% endif %}
                 {% endfor %}
             </div>
-            <a href="#"
-               class="btn btn-info btn-sm pdf-export-btn disabled"
-               onclick="alert({{ UI.pdf_export_disabled|default('Exporting to PDF is currently disabled.')|tojson }}); return false;"
-               title="{{ UI.pdf_export_disabled|default('Exporting to PDF is currently disabled.') }}">
+            {# --- إعادة تفعيل زر PDF وإزالة onclick --- #}
+            <a href="{{ url_for('export_pdf', year=current_year, month=current_month) }}"
+               class="btn btn-info btn-sm pdf-export-btn {{ 'disabled' if not WEASYPRINT_AVAILABLE }}"
+               {% if not WEASYPRINT_AVAILABLE %} onclick="alert({{ UI.weasyprint_not_found|tojson }}); return false;" title="{{ UI.weasyprint_not_found }}"
+               {% else %} target="_blank" {% endif %}>
                <i class="fas fa-file-pdf"></i> {{ UI.export_pdf_btn }}
             </a>
         </div>
@@ -598,7 +618,6 @@
                             <span class="mobile-label">{{ UI.th_last_update }}</span>
                             <span class="mobile-value">
                                 <span>{{ activity.last_updated_on.strftime('%Y-%m-%d %H:%M') if activity.last_updated_on else '-' }}</span>
-                                {# --- تم حذف كلمة "بواسطة" من هنا --- #}
                                 <span>{{ activity.last_updated_by.name if activity.last_updated_by else '-' }}</span>
                             </span>
                         </td>
@@ -609,7 +628,6 @@
                         {% if (is_editor or is_admin) and selected_editor_id %}
                             <td class="actions">
                                 <span class="mobile-label">{{ UI.th_actions }}</span>
-                                {# --- إضافة حاوية للأزرار لسطح المكتب وتطبيق mobile-value عليها للموبايل --- #}
                                 <div class="action-buttons-wrapper mobile-value">
                                     <button class="btn btn-warning btn-sm edit-btn" data-activity-id="{{ activity.id }}" onclick="openEditModal(this)">
                                         <i class="fas fa-edit"></i> <span>{{ UI.edit_btn }}</span>
@@ -658,6 +676,7 @@
 </div> {# End container #}
 
 {# --- النوافذ المنبثقة (Modals) الخاصة بـ index.html --- #}
+{# (تبقى كما هي) #}
 {# --- مودال تسجيل دخول المحرر --- #}
 <div id="editorLoginModal" class="modal" tabindex="-1" aria-labelledby="editorLoginModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -865,11 +884,11 @@
         activityForm.reset();
 
         const today = new Date();
-        const yyyy = today.getFullYear();
+        const inplace = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
         const activityDateField = document.getElementById('activity_date');
-        if(activityDateField) activityDateField.value = `${yyyy}-${mm}-${dd}`;
+        if(activityDateField) activityDateField.value = `${inplace}-${mm}-${dd}`;
 
         const statusField = document.getElementById('status');
         if(statusField) statusField.value = '0';
@@ -954,3 +973,19 @@
 
 </script>
 {% endblock %} {# --- نهاية بلوك السكربتات --- #}
+```
+
+**شرح التعديل في `index.html`:**
+
+* داخل `@media screen and (max-width: 992px)`:
+    * تم إضافة `min-width` بقيم تقديرية للخلايا الثلاث الأولى:
+        ```css
+         /* تخصيص الحد الأدنى لكل خلية إذا أردنا */
+        .main-table tr td:nth-of-type(1) { min-width: 35px; } /* حد أدنى للتسلسل */
+        .main-table tr td:nth-of-type(2) { min-width: 80px; } /* حد أدنى للتاريخ */
+        .main-table tr td:nth-of-type(3) { min-width: 90px; } /* حد أدنى للمشروع */
+        ```
+
+هذا التعديل سيضمن أن الخلايا الثلاث الأولى لن تنكمش أقل من القيم المحددة بالبكسل، لكنها ستظل قادرة على التوسع لتأخذ ثلث المساحة المتاحة إذا كانت الشاشة أعرض من مجموع هذه الحدود الدنيا.
+
+هل ترغب في المتابعة بخطوات الرفع إلى Render ال
